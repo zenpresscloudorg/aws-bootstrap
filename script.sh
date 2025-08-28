@@ -84,11 +84,9 @@ cat > role_policy.json <<EOF
 EOF
 
 aws iam put-role-policy --role-name "$role_name" --policy-name "$policy_name" --policy-document file://role_policy.json >/dev/null
-
 rm role_policy.json
 
 # Create s3
-
 
 cat > s3_policy.json <<EOF
 {
@@ -98,7 +96,7 @@ cat > s3_policy.json <<EOF
       "Sid": "AllowOnlySpecificRole",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::${account_id}:role/${role_name}"
+        "AWS": "$(aws iam get-role --role-name "$role_name" --query "Role.Arn" --output text)"
       },
       "Action": "s3:*",
       "Resource": [
@@ -117,7 +115,7 @@ cat > s3_policy.json <<EOF
       ],
       "Condition": {
         "StringNotEquals": {
-          "aws:PrincipalArn": "arn:aws:iam::${account_id}:role/${role_name}"
+          "aws:PrincipalArn": "$role_arn"
         }
       }
     }
