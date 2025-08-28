@@ -1,6 +1,6 @@
 # Usage instructions
 
-## 1) Login in AWS CloudShell
+## 1) Login in AWS CloudShell (login in aws region you want to bootstrap)
 
 ## 2) Clone repository
 
