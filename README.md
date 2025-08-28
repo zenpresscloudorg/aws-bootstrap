@@ -1,9 +1,4 @@
-# terraform-bootstrap
-## Steps
-- Clone repo on Cloudshell
-- Run script.sh
-
-# Instrucciones de uso 
+# Usage instructions
 
 ## 1) Login in AWS CloudShell
 
