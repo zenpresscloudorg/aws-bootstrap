@@ -3,7 +3,6 @@
 ## 1) Login in AWS CloudShell
 
 ## 2) Clone repository
-Reemplaza `REPO_URL` y `tu_repo` por tu URL y nombre reales.
 
 ```bash
 git clone https://github.com/edup92/terraform-bootstrap.git
