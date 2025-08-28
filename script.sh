@@ -68,15 +68,15 @@ cat > role_policy.json <<EOF
       "Effect": "Allow",
       "Action": "s3:*",
       "Resource": [
-        "arn:aws:s3:::${projectname}-s3-{projectenv}-*",
-        "arn:aws:s3:::${projectname}-s3-{projectenv}-*/*"
+        "arn:aws:s3:::${projectname}-s3-${projectenv}-*",
+        "arn:aws:s3:::${projectname}-s3-${projectenv}-*/*"
       ]
     },
     {
       "Effect": "Allow",
       "Action": "dynamodb:*",
       "Resource": [
-        "arn:aws:dynamodb:${AWS_REGION}:*:table/${projectname}-ddb-{projectenv}-*"
+        "arn:aws:dynamodb:${AWS_REGION}:*:table/${projectname}-ddb-${projectenv}-*"
       ]
     }
   ]
@@ -89,14 +89,41 @@ rm role_policy.json
 
 # Create s3
 
-if aws s3api head-bucket --bucket "$s3_name" 2>/dev/null; then
-  echo "Bucket exists, skipping"
-else
-  aws s3api create-bucket --bucket "$s3_name" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION"
-  aws s3api put-public-access-block --bucket "$s3_name" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-  aws s3api put-bucket-encryption --bucket "$s3_name" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-  echo "Bucket created"
-fi
+
+cat > s3_policy.json <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowOnlySpecificRole",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::${account_id}:role/${role_name}"
+      },
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::${s3_name}",
+        "arn:aws:s3:::${s3_name}/*"
+      ]
+    },
+    {
+      "Sid": "DenyAllOtherPrincipals",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::${s3_name}",
+        "arn:aws:s3:::${s3_name}/*"
+      ],
+      "Condition": {
+        "StringNotEquals": {
+          "aws:PrincipalArn": "arn:aws:iam::${account_id}:role/${role_name}"
+        }
+      }
+    }
+  ]
+}
+EOF
 
 if aws s3api head-bucket --bucket "$s3_name" 2>/dev/null; then
   echo "Bucket exists, skipping"
@@ -104,8 +131,12 @@ else
   aws s3api create-bucket --bucket "$s3_name" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" >/dev/null
   aws s3api put-public-access-block --bucket "$s3_name" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true >/dev/null
   aws s3api put-bucket-encryption --bucket "$s3_name" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}' >/dev/null
+  aws s3api put-bucket-versioning --bucket "$s3_name" --versioning-configuration Status=Enabled >/dev/null
+  aws s3api put-bucket-policy --bucket "$s3_name" --policy file://s3_policy.json >/dev/null
   echo "Bucket created"
 fi
+
+rm s3_policy.json
 
 echo "S3 name: $s3_name"
 echo "Role name: $role_name"
