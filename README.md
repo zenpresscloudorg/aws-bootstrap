@@ -16,5 +16,5 @@ chmod +x script.sh
 
 ## 4) Run script
 ```bash
-./script.sh ACCOUNT_NAME PROJECT_NAME
+./script.sh
 ```
