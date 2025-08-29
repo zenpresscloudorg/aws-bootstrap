@@ -163,7 +163,6 @@ if [[ -n "${projectdomains[*]}" ]]; then
     hz_id=$(aws route53 list-hosted-zones-by-name --dns-name "$domain." \
       --query "HostedZones[?Name=='$domain.'] | [?Config.PrivateZone==\`false\`].Id" \
       --output text | head -n 1)
-
     if [[ -n "$hz_id" ]]; then
       echo "Hosted zone for $domain exists, skipping"
     else
