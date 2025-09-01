@@ -245,7 +245,7 @@ for i in "${!azs[@]}"; do
     --availability-zone "${azs[$i]}" \
     --query "Subnet.SubnetId" \
     --output text)
-  aws ec2 create-tags --resources "$private_subnet_id" --tags Key=Name,Value="${projectname}-subnet-public-${projectenv}-${az}"
+  aws ec2 create-tags --resources "$private_subnet_id" --tags Key=Name,Value="${projectname}-subnet-private-${projectenv}-${az}"
   private_subnet_ids["${azs[$i]}"]="$private_subnet_id"
 done
 
@@ -259,7 +259,7 @@ if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
       --availability-zone "${azs[$i]}" \
       --query "Subnet.SubnetId" \
       --output text)
-    aws ec2 create-tags --resources "$nat_subnet_id" --tags Key=Name,Value="${projectname}-subnet-public-${projectenv}-${az}"
+    aws ec2 create-tags --resources "$nat_subnet_id" --tags Key=Name,Value="${projectname}-subnet-nat-${projectenv}-${az}"
     private_subnet_ids["${azs[$i]}"]="$nat_subnet_id"
   done
 fi
