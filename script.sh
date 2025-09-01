@@ -341,7 +341,7 @@ if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
   else
     private_zone_id=$(aws route53 create-hosted-zone \
       --name "$subnet_private_domain_name" \
-      --vpc VPCRegion=$account_region,VPCId="$vpc_id" \ 
+      --vpc VPCRegion=$account_region,VPCId="$vpc_id" \
       --hosted-zone-config PrivateZone=true \
       --caller-reference "$(date +%s)-$subnet_private_domain_name" \
       --query "HostedZone.Id" --output text)
