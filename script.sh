@@ -4,46 +4,39 @@
 
 read -p "Enter project name: " projectname
 read -p "Enter environment (ej: dev, prod): " projectenv
-read -p "Do you want to add project domain/s to route53 (public domain/s) (optional) ? (y/n): " add_domains
 read -p "Enter CIDR block for the VPC (default 10.0.0.0/16): " vpc_cidr
 read -p "Do you want to enable IPv6 for the VPC? (y/n): " vpc_ipv6
 read -p "Do you want to create a private subnet with NAT (optional)? (y/n): " subnet_nat
-read -p "Do you want to create a private domain in Route53 for accessing your resources (e.g. servers)? (y/n): " subnet_private_domain
-
-if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
-  read -p "Enter the private domain name (e.g. internal.example.com): " subnet_private_domain_name
-  echo "Private domain to be created: $subnet_private_domain_name"
-fi
-
-if [[ "$add_domains" =~ ^[yY]$ ]]; then
-  echo "Enter one or more domains separated by spaces (only public domains):"
-  read -a projectdomains
-  echo "Domains to be created: ${projectdomains[@]}"
-fi
-
 if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
   echo "A private subnet with NAT will be created."
   read -s -p "Enter your Tailscale API key: " subnet_nat_tailscale
   echo
 fi
-
+read -p "Do you want to add public project domain/s to route53 (optional)? (y/n): " add_public_domains
+if [[ "$add_public_domains" =~ ^[yY]$ ]]; then
+  echo "Enter one or more public domains separated by spaces (only public domains):"
+  read -a public_domains
+fi
+read -p "Do you want to add private project domain/s to route53 (optional)? (y/n): " add_private_domains
+if [[ "$add_private_domains" =~ ^[yY]$ ]]; then
+  echo "Enter one or more private domains separated by spaces (only private domains):"
+  read -a private_domains
+fi
 read -p "Enter github account name: " ghaccount
 read -p "Enter github repo name: " ghrepo
-
-
 
 ############# TEST
 
 
 projectname="test"
 projectenv="dev"
-add_domains="y"
 vpc_cidr="10.0.0.0/16"
 vpc_ipv6="y"
 subnet_nat="y"
-subnet_private_domain="y"
-subnet_private_domain_name="hola.local"
-projectdomains="sdfsdfdfgfhdfhfgh.com"
+add_public_domains="y"
+public_domains="sdfsdfdfgfhdfhfgh.com"
+add_private_domains="y"
+private_domains="hola.local"
 subnet_nat_tailscale="1235"
 ghaccount="test"
 ghrepo="test"
@@ -68,7 +61,8 @@ policy_name="${projectname}-policy-${projectenv}-bootstrap"
 s3_name="${projectname}-s3-${projectenv}-bootstrap"
 keypair_name="${projectname}-keypair-${projectenv}-bootstrap"
 keypair_file="$HOME/$keypair_name.pem"
-declare -A hosted_zone_ids
+declare -A public_hosted_zone_ids
+declare -A private_hosted_zone_ids
 declare -A public_subnet_ids
 declare -A private_subnet_ids
 declare -A nat_subnet_ids
@@ -207,32 +201,6 @@ else
 
 fi
 
-# Domains
-
-if [[ -n "${projectdomains[*]}" ]]; then
-  for domain in "${projectdomains[@]}"; do
-    hz_id=$(aws route53 list-hosted-zones-by-name --dns-name "$domain." \
-      --query "HostedZones[?Name=='$domain.'] | [?Config.PrivateZone==\`false\`].Id" \
-      --output text | head -n 1)
-    if [[ -n "$hz_id" ]]; then
-      hz_id="${hz_id##*/}"
-      hosted_zone_ids["$domain"]="$hz_id"
-      hosted_zone_msgs["$domain"]="Domain $domain already exists in Route53, Skipping. Hosted zone ID: $hz_id"
-      # echo "Hosted zone for $domain exists, skipping"  # <- Elimina este echo si usas el array de mensajes
-    else
-      hosted_zone_id=$(aws route53 create-hosted-zone \
-        --name "$domain" \
-        --caller-reference "$(date +%s)-$domain" \
-        --query "HostedZone.Id" \
-        --output text)
-      hosted_zone_id="${hosted_zone_id##*/}"
-      hosted_zone_ids["$domain"]="$hosted_zone_id"
-      hosted_zone_msgs["$domain"]="Domain $domain added to Route53. Hosted zone ID: $hosted_zone_id"
-      # echo "Hosted zone for $domain created."  # <- Elimina este echo si usas el array de mensajes
-    fi
-  done
-fi
-
 # VPC
 
 vpc_id=$(aws ec2 describe-vpcs \
@@ -348,25 +316,54 @@ if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
   done
 fi
 
-# Private domain
 
-if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
-  private_zone_id=$(aws route53 list-hosted-zones-by-name --dns-name "$subnet_private_domain_name." \
-    --query "HostedZones[?Name=='$subnet_private_domain_name.' && Config.PrivateZone==\`true\`].Id" \
-    --output text | head -n 1)
-  if [[ -n "$private_zone_id" ]]; then
-    private_zone_id="${private_zone_id##*/}"
-    private_zone_msg="Private hosted zone for $subnet_private_domain_name exists, skipping"
-  else
-    private_zone_id=$(aws route53 create-hosted-zone \
-      --name "$subnet_private_domain_name" \
-      --vpc VPCRegion=$account_region,VPCId="$vpc_id" \
-      --hosted-zone-config PrivateZone=true \
-      --caller-reference "$(date +%s)-$subnet_private_domain_name" \
-      --query "HostedZone.Id" --output text)
-    private_zone_id="${private_zone_id##*/}"
-    private_zone_msg="Private hosted zone created: $subnet_private_domain_name"
-  fi
+# Public domains
+
+if [[ -n "${public_domains[*]}" ]]; then
+  for domain in "${public_domains[@]}"; do
+    hz_id=$(aws route53 list-hosted-zones-by-name --dns-name "$domain." \
+      --query "HostedZones[?Name=='$domain.'] | [?Config.PrivateZone==\`false\`].Id" \
+      --output text | head -n 1)
+    if [[ -n "$hz_id" ]]; then
+      hz_id="${hz_id##*/}"
+      public_hosted_zone_ids["$domain"]="$hz_id"
+      echo "Public domain $domain: already exists (hosted zone $hz_id), skipping"
+    else
+      hosted_zone_id=$(aws route53 create-hosted-zone \
+        --name "$domain" \
+        --caller-reference "$(date +%s)-$domain" \
+        --query "HostedZone.Id" \
+        --output text)
+      hosted_zone_id="${hosted_zone_id##*/}"
+      public_hosted_zone_ids["$domain"]="$hosted_zone_id"
+      echo "Public domain $domain: hosted zone $hosted_zone_id created"
+    fi
+  done
+fi
+
+# Private domains
+
+if [[ -n "${private_domains[*]}" ]]; then
+  for domain in "${private_domains[@]}"; do
+    hz_id=$(aws route53 list-hosted-zones-by-name --dns-name "$domain." \
+      --query "HostedZones[?Name=='$domain.' && Config.PrivateZone==\`true\`].Id" \
+      --output text | head -n 1)
+    if [[ -n "$hz_id" ]]; then
+      hz_id="${hz_id##*/}"
+      private_hosted_zone_ids["$domain"]="$hz_id"
+      echo "Private domain $domain: already exists (hosted zone $hz_id), skipping"
+    else
+      hosted_zone_id=$(aws route53 create-hosted-zone \
+        --name "$domain" \
+        --vpc VPCRegion=$account_region,VPCId="$vpc_id" \
+        --hosted-zone-config PrivateZone=true \
+        --caller-reference "$(date +%s)-$domain" \
+        --query "HostedZone.Id" --output text)
+      hosted_zone_id="${hosted_zone_id##*/}"
+      private_hosted_zone_ids["$domain"]="$hosted_zone_id"
+      echo "Private domain $domain: hosted zone $hosted_zone_id created"
+    fi
+  done
 fi
 
 # Echos
@@ -379,17 +376,18 @@ echo ""
 echo "S3 name: $s3_name"
 echo "Role name: $role_name"
 echo "Keypair location: $(realpath "$keypair_file") PLEASE DOWNLOAD PEM"
-if [[ -n "${projectdomains[*]}" ]]; then
-  for domain in "${projectdomains[@]}"; do
-    echo "${hosted_zone_msgs[$domain]}"
-    ns_servers=$(aws route53 get-hosted-zone --id "${hosted_zone_ids[$domain]}" \
-      --query "DelegationSet.NameServers" --output text)
+echo "VPC created: $vpc_id"
+if [[ -n "${public_domains[*]}" ]]; then
+  for domain in "${public_domains[@]}"; do
+    hz_id="${public_hosted_zone_ids[$domain]}"
+    echo "Domain: $domain | Hosted Zone ID: $hz_id"
+    ns_servers=$(aws route53 get-hosted-zone --id "$hz_id" --query "DelegationSet.NameServers" --output text)
     echo "Nameservers: $ns_servers"
   done
 fi
-echo "VPC created: $vpc_id"
-if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
-  echo "$private_zone_msg"
-else
-  echo "No private hosted zone was created."
+if [[ -n "${private_domains[*]}" ]]; then
+  for domain in "${private_domains[@]}"; do
+    hz_id="${private_hosted_zone_ids[$domain]}"
+    echo "Private Domain: $domain | Hosted Zone ID: $hz_id"
+  done
 fi
