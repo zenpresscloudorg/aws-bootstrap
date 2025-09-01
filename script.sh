@@ -217,7 +217,8 @@ if [[ -n "${projectdomains[*]}" ]]; then
     if [[ -n "$hz_id" ]]; then
       hz_id="${hz_id##*/}"
       hosted_zone_ids["$domain"]="$hz_id"
-      echo "Hosted zone for $domain exists, skipping"
+      hosted_zone_msgs["$domain"]="Domain $domain already exists in Route53, Skipping. Hosted zone ID: $hz_id"
+      # echo "Hosted zone for $domain exists, skipping"  # <- Elimina este echo si usas el array de mensajes
     else
       hosted_zone_id=$(aws route53 create-hosted-zone \
         --name "$domain" \
@@ -226,7 +227,8 @@ if [[ -n "${projectdomains[*]}" ]]; then
         --output text)
       hosted_zone_id="${hosted_zone_id##*/}"
       hosted_zone_ids["$domain"]="$hosted_zone_id"
-      echo "Hosted zone for $domain created."
+      hosted_zone_msgs["$domain"]="Domain $domain added to Route53. Hosted zone ID: $hosted_zone_id"
+      # echo "Hosted zone for $domain created."  # <- Elimina este echo si usas el array de mensajes
     fi
   done
 fi
@@ -379,12 +381,10 @@ echo "Role name: $role_name"
 echo "Keypair location: $(realpath "$keypair_file") PLEASE DOWNLOAD PEM"
 if [[ -n "${projectdomains[*]}" ]]; then
   for domain in "${projectdomains[@]}"; do
+    echo "${hosted_zone_msgs[$domain]}"
     ns_servers=$(aws route53 get-hosted-zone --id "${hosted_zone_ids[$domain]}" \
       --query "DelegationSet.NameServers" --output text)
-    echo "Domain $domain added to Route53."
-    echo "Nameservers:"
-    echo "$ns_servers"
-    echo ""
+    echo "Nameservers: $ns_servers"
   done
 fi
 echo "VPC created: $vpc_id"
