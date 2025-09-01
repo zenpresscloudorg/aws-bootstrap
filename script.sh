@@ -182,12 +182,12 @@ EOF
 if aws s3api head-bucket --bucket "$s3_name" 2>/dev/null; then
   echo "Bucket exists, skipping"
 else
-  aws s3api create-bucket --bucket "$s3_name" --region "$account_region" --create-bucket-configuration LocationConstraint="$account_region" >/dev/null 2>&1
-  aws s3api put-public-access-block --bucket "$s3_name" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true >/dev/null 2>&1
-  aws s3api put-bucket-encryption --bucket "$s3_name" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}' >/dev/null 2>&1
-  aws s3api put-bucket-versioning --bucket "$s3_name" --versioning-configuration Status=Enabled >/dev/null 2>&1
-  aws s3api put-bucket-policy --bucket "$s3_name" --policy file://s3_policy.json >/dev/null 2>&1
-  echo "Bucket created"
+  if aws s3api create-bucket --bucket "$s3_name" --region "$account_region" --create-bucket-configuration LocationConstraint="$account_region" >/dev/null 2>&1; then
+    aws s3api put-public-access-block --bucket "$s3_name" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true >/dev/null 2>&1
+    aws s3api put-bucket-encryption --bucket "$s3_name" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}' >/dev/null 2>&1
+    aws s3api put-bucket-versioning --bucket "$s3_name" --versioning-configuration Status=Enabled >/dev/null 2>&1
+    aws s3api put-bucket-policy --bucket "$s3_name" --policy file://s3_policy.json >/dev/null 2>&1
+    echo "Bucket created"
 fi
 
 rm s3_policy.json
@@ -219,8 +219,8 @@ else
 fi
 
 if [[ "$vpc_ipv6" =~ ^[yY]$ ]]; then
-  ipv6_assoc=$(aws ec2 associate-vpc-cidr-block --vpc-id "$vpc_id" --amazon-provided-ipv6-cidr-block --query "Ipv6CidrBlockAssociation.Ipv6CidrBlock" --output text)
-  echo "IPv6 enabled for VPC. IPv6 CIDR block: $ipv6_assoc"
+  aws ec2 associate-vpc-cidr-block --vpc-id "$vpc_id" --amazon-provided-ipv6-cidr-block --query "Ipv6CidrBlockAssociation.Ipv6CidrBlock" --output text
+  echo "IPv6 enabled for VPC"
 else
   echo "IPv6 not enabled for VPC."
 fi
@@ -255,7 +255,7 @@ igw_id=$(aws ec2 describe-internet-gateways \
   --query "InternetGateways[0].InternetGatewayId" --output text)
 
 if [[ "$igw_id" != "None" && -n "$igw_id" ]]; then
-  echo "Internet Gateway $igw_id already attached to VPC $vpc_id, skipping creation"
+  echo "Internet Gateway $igw_id already exists, skipping creation"
 else
   # Crea un nuevo IGW y lo adjunta a la VPC
   igw_id=$(aws ec2 create-internet-gateway --query "InternetGateway.InternetGatewayId" --output text)
