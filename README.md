@@ -15,10 +15,9 @@
 
 ```bash
 git clone https://github.com/edup92/terraform-bootstrap.git
-cd terraform-bootstrap
 ```
 
 ### 3) Give execution permissions and Run script
 ```bash
-chmod +x script.sh ; ./script.sh
+cd terraform-bootstrap ; chmod +x script.sh ; ./script.sh
 ```
