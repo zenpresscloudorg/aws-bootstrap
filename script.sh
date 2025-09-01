@@ -61,7 +61,7 @@ sleep 3
 
 account_name=$(aws sts get-caller-identity --query Account --output text)
 account_region=$(echo $AWS_REGION);
-azs=($(aws ec2 describe-availability-zones --filters Name=region-name,Values=$(account_region) --query "AvailabilityZones[].ZoneName" --output text))
+azs=($(aws ec2 describe-availability-zones --filters Name=region-name,Values=$account_region --query "AvailabilityZones[].ZoneName" --output text))
 vpc_name="${projectname}-vpc-${projectenv}-bootstrap"
 role_name="${projectname}-role-${projectenv}-bootstrap"
 policy_name="${projectname}-policy-${projectenv}-bootstrap"
