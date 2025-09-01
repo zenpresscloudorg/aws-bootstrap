@@ -56,6 +56,9 @@ account_name=$(aws sts get-caller-identity --query Account --output text)
 account_region=$(echo $AWS_REGION);
 azs=($(aws ec2 describe-availability-zones --filters Name=region-name,Values=$account_region --query "AvailabilityZones[].ZoneName" --output text))
 vpc_name="${projectname}-vpc-${projectenv}-bootstrap"
+sg_test_name="${projectname}-sg-test-${projectenv}"
+sg_natgw_name="${projectname}-sg-natgw-${projectenv}"
+instance_natgw_name="${projectname}-ec2-natgw-${projectenv}-bootstrap"
 public_rt_name="${projectname}-rt-public-${projectenv}-bootstrap"
 private_rt_name="${projectname}-rt-private-${projectenv}-bootstrap"
 nat_rt_name="${projectname}-rt-nat-${projectenv}-bootstrap"
@@ -231,6 +234,42 @@ else
   fi
 fi
 
+# Security Groups
+
+sg_test_id=$(aws ec2 describe-security-groups \
+  --filters "Name=vpc-id,Values=$vpc_id" "Name=group-name,Values=$sg_test_name" \
+  --query "SecurityGroups[0].GroupId" --output text)
+
+if [[ "$sg_test_id" != "None" && -n "$sg_test_id" ]]; then
+  echo "Security Group $sg_test_name exists, skipping creation"
+else
+  sg_test_id=$(aws ec2 create-security-group \
+    --group-name "$sg_test_name" \
+    --description "All open (test)" \
+    --vpc-id "$vpc_id" \
+    --query "GroupId" --output text)
+  echo "Security Group $sg_test_name created: $sg_test_id"
+  aws ec2 authorize-security-group-ingress \
+    --group-id "$sg_test_id" \
+    --protocol -1 --port all --cidr 0.0.0.0/0 >/dev/null
+  echo "Inbound rule ALL open for $sg_test_name"
+fi
+
+sg_natgw_id=$(aws ec2 describe-security-groups \
+  --filters "Name=vpc-id,Values=$vpc_id" "Name=group-name,Values=$sg_natgw_name" \
+  --query "SecurityGroups[0].GroupId" --output text)
+if [[ "$sg_natgw_id" != "None" && -n "$sg_natgw_id" ]]; then
+  echo "Security Group $sg_natgw_name exists, skipping creation"
+else
+  sg_natgw_id=$(aws ec2 create-security-group \
+    --group-name "$sg_natgw_name" \
+    --description "All inbound blocked (NAT)" \
+    --vpc-id "$vpc_id" \
+    --query "GroupId" --output text)
+  echo "Security Group $sg_natgw_name created: $sg_nsg_natgw_idat_id"
+  echo "Inbound rule: ALL BLOCKED for $sg_natgw_name"
+fi
+
 # Public subnet
 
 for i in "${!azs[@]}"; do
@@ -369,6 +408,41 @@ done
 # Nat subnet
 
 if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
+
+  # Nat GW
+
+  ami_id=$(aws ec2 describe-images \
+    --owners "amazon" \
+    --filters "Name=name,Values=al2023-ami-minimal-arm64-*" "Name=state,Values=available" \
+    --region "$account_region" \
+    --query "Images | sort_by(@, &CreationDate)[-1].ImageId" \
+    --output text)
+
+  first_public_az="${azs[0]}"
+  public_subnet_id="${public_subnet_ids[$first_public_az]}"
+
+  cat > instance_natgw_userdata.sh <<EOF
+  #!/bin/bash
+  curl -fsSL https://tailscale.com/install.sh | sh
+  tailscale up --authkey ${subnet_nat_tailscale}
+  EOF
+
+  instance_id=$(aws ec2 run-instances \
+    --image-id "$ami_id" \
+    --instance-type t4g.nano \
+    --key-name "$keypair_name" \
+    --security-group-ids "$sg_natgw_id" \
+    --subnet-id "$public_subnet_id" \
+    --associate-public-ip-address \
+    --region "$account_region" \
+    --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${instance_natgw_name}}]" \
+    --user-data file://instance_natgw_userdata.sh \
+    --query "Instances[0].InstanceId" \
+    --output text)
+  echo "Launched NAT instance $instance_id in subnet $public_subnet_id"
+
+  rm instance_natgw_userdata.sh
+
   for i in "${!azs[@]}"; do
     az="${azs[$i]}"
     subnet_name="${projectname}-subnet-nat-${projectenv}-${az}"
@@ -477,6 +551,7 @@ echo "S3 name: $s3_name"
 echo "Role name: $role_name"
 echo "Keypair location: $(realpath "$keypair_file") PLEASE DOWNLOAD PEM"
 echo "VPC Id: $vpc_id"
+echo "Security Group test ID: $sg_test_id"
 if [[ -n "${public_domains[*]}" ]]; then
   for domain in "${public_domains[@]}"; do
     hz_id=$(aws route53 list-hosted-zones-by-name --dns-name "$domain." \
