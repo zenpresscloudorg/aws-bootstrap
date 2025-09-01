@@ -33,15 +33,17 @@ read -p "Enter github repo name: " ghrepo
 # Variables
 
 account_name=$(aws sts get-caller-identity --query Account --output text)
-vpc_cidr="10.0.0.0/16"
+azs=($(aws ec2 describe-availability-zones --filters Name=region-name,Values=$(aws configure get region) --query "AvailabilityZones[].ZoneName" --output text))
 vpc_name="${projectname}-vpc-${projectenv}-bootstrap"
-
 role_name="${projectname}-role-${projectenv}-bootstrap"
 policy_name="${projectname}-policy-${projectenv}-bootstrap"
 s3_name="${projectname}-s3-${projectenv}-bootstrap"
 keypair_name="${projectname}-keypair"
 keypair_file="${keypair_name}.pem"
 declare -A hosted_zone_ids
+declare -A public_subnet_ids
+declare -A private_subnet_ids
+declare -A nat_subnet_ids
 
 # Create oidc
 
@@ -217,6 +219,53 @@ else
   echo "IPv6 not enabled for VPC."
 fi
 
+# Public subnet
+
+for i in "${!azs[@]}"; do
+  subnet_id=$(aws ec2 create-subnet \
+    --vpc-id "$vpc_id" \
+    --cidr-block "10.0.$((i+1)).0/24" \
+    --availability-zone "${azs[$i]}" \
+    --query "Subnet.SubnetId" \
+    --output text)
+  aws ec2 create-tags --resources "$subnet_id" --tags Key=Name,Value="${projectname}-subnet-public-${projectenv}-${az}"
+  public_subnet_ids["${azs[$i]}"]="$subnet_id"
+done
+
+igw_id=$(aws ec2 create-internet-gateway --query "InternetGateway.InternetGatewayId" --output text)
+aws ec2 attach-internet-gateway --vpc-id "$vpc_id" --internet-gateway-id "$igw_id"
+aws ec2 create-tags --resources "$igw_id" --tags Key=Name,Value="${projectname}-igw-${projectenv}-bootstrap"
+
+# Private subnet
+
+for i in "${!azs[@]}"; do
+  private_subnet_id=$(aws ec2 create-subnet \
+    --vpc-id "$vpc_id" \
+    --cidr-block "10.0.$((100+i+1)).0/24" \
+    --availability-zone "${azs[$i]}" \
+    --query "Subnet.SubnetId" \
+    --output text)
+  aws ec2 create-tags --resources "$private_subnet_id" --tags Key=Name,Value="${projectname}-subnet-public-${projectenv}-${az}"
+  private_subnet_ids["${azs[$i]}"]="$private_subnet_id"
+done
+
+# Nat subnet
+
+if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
+  for i in "${!azs[@]}"; do
+    nat_subnet_id=$(aws ec2 create-subnet \
+      --vpc-id "$vpc_id" \
+      --cidr-block "10.0.$((200+i+1)).0/24" \
+      --availability-zone "${azs[$i]}" \
+      --query "Subnet.SubnetId" \
+      --output text)
+    aws ec2 create-tags --resources "$nat_subnet_id" --tags Key=Name,Value="${projectname}-subnet-public-${projectenv}-${az}"
+    private_subnet_ids["${azs[$i]}"]="$nat_subnet_id"
+  done
+fi
+
+# Private domain
+
 if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
   private_zone_id=$(aws route53 list-hosted-zones-by-name --dns-name "$subnet_private_domain_name." \
     --query "HostedZones[?Name=='$subnet_private_domain_name.' && Config.PrivateZone==\`true\`].Id" \
@@ -252,7 +301,7 @@ if [[ -n "${projectdomains[*]}" ]]; then
 fi
 echo "VPC created: $vpc_id"
 if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
-  echo "Private hosted zone created: $subnet_private_domain_name (ID: $private_zone_id) and associated with VPC $vpc_id"
+  echo "$private_zone_msg"
 else
   echo "No private hosted zone was created."
 fi
