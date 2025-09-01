@@ -222,15 +222,29 @@ fi
 # Public subnet
 
 for i in "${!azs[@]}"; do
-  subnet_id=$(aws ec2 create-subnet \
-    --vpc-id "$vpc_id" \
-    --cidr-block "10.0.$((i+1)).0/24" \
-    --availability-zone "${azs[$i]}" \
-    --query "Subnet.SubnetId" \
-    --output text)
-  aws ec2 create-tags --resources "$subnet_id" --tags Key=Name,Value="${projectname}-subnet-public-${projectenv}-${az}"
-  public_subnet_ids["${azs[$i]}"]="$subnet_id"
+  az="${azs[$i]}"
+  subnet_name="${projectname}-subnet-public-${projectenv}-${az}"
+  # Buscar si existe ya una subnet con ese nombre en la AZ y VPC
+  existing_subnet_id=$(aws ec2 describe-subnets \
+    --filters "Name=tag:Name,Values=$subnet_name" "Name=vpc-id,Values=$vpc_id" "Name=availability-zone,Values=$az" \
+    --query "Subnets[0].SubnetId" --output text)
+  if [[ "$existing_subnet_id" != "None" && -n "$existing_subnet_id" ]]; then
+    public_subnet_ids["$az"]="$existing_subnet_id"
+    echo "Public subnet for $az exists, skipping creation"
+  else
+    subnet_cidr="10.0.$((i+1)).0/24"
+    subnet_id=$(aws ec2 create-subnet \
+      --vpc-id "$vpc_id" \
+      --cidr-block "$subnet_cidr" \
+      --availability-zone "$az" \
+      --query "Subnet.SubnetId" \
+      --output text)
+    aws ec2 create-tags --resources "$subnet_id" --tags Key=Name,Value="$subnet_name"
+    public_subnet_ids["$az"]="$subnet_id"
+    echo "Public subnet for $az created"
+  fi
 done
+
 
 igw_id=$(aws ec2 create-internet-gateway --query "InternetGateway.InternetGatewayId" --output text)
 aws ec2 attach-internet-gateway --vpc-id "$vpc_id" --internet-gateway-id "$igw_id"
@@ -239,28 +253,53 @@ aws ec2 create-tags --resources "$igw_id" --tags Key=Name,Value="${projectname}-
 # Private subnet
 
 for i in "${!azs[@]}"; do
-  private_subnet_id=$(aws ec2 create-subnet \
-    --vpc-id "$vpc_id" \
-    --cidr-block "10.0.$((100+i+1)).0/24" \
-    --availability-zone "${azs[$i]}" \
-    --query "Subnet.SubnetId" \
-    --output text)
-  aws ec2 create-tags --resources "$private_subnet_id" --tags Key=Name,Value="${projectname}-subnet-private-${projectenv}-${az}"
-  private_subnet_ids["${azs[$i]}"]="$private_subnet_id"
+  az="${azs[$i]}"
+  subnet_name="${projectname}-subnet-private-${projectenv}-${az}"
+  existing_subnet_id=$(aws ec2 describe-subnets \
+    --filters "Name=tag:Name,Values=$subnet_name" "Name=vpc-id,Values=$vpc_id" "Name=availability-zone,Values=$az" \
+    --query "Subnets[0].SubnetId" --output text)
+  if [[ "$existing_subnet_id" != "None" && -n "$existing_subnet_id" ]]; then
+    private_subnet_ids["$az"]="$existing_subnet_id"
+    echo "Private subnet for $az exists, skipping creation"
+  else
+    subnet_cidr="10.0.$((100+i+1)).0/24"
+    subnet_id=$(aws ec2 create-subnet \
+      --vpc-id "$vpc_id" \
+      --cidr-block "$subnet_cidr" \
+      --availability-zone "$az" \
+      --query "Subnet.SubnetId" \
+      --output text)
+    aws ec2 create-tags --resources "$subnet_id" --tags Key=Name,Value="$subnet_name"
+    private_subnet_ids["$az"]="$subnet_id"
+    echo "Private subnet for $az created"
+  fi
 done
+
 
 # Nat subnet
 
 if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
   for i in "${!azs[@]}"; do
-    nat_subnet_id=$(aws ec2 create-subnet \
-      --vpc-id "$vpc_id" \
-      --cidr-block "10.0.$((200+i+1)).0/24" \
-      --availability-zone "${azs[$i]}" \
-      --query "Subnet.SubnetId" \
-      --output text)
-    aws ec2 create-tags --resources "$nat_subnet_id" --tags Key=Name,Value="${projectname}-subnet-nat-${projectenv}-${az}"
-    private_subnet_ids["${azs[$i]}"]="$nat_subnet_id"
+    az="${azs[$i]}"
+    subnet_name="${projectname}-subnet-nat-${projectenv}-${az}"
+    existing_subnet_id=$(aws ec2 describe-subnets \
+      --filters "Name=tag:Name,Values=$subnet_name" "Name=vpc-id,Values=$vpc_id" "Name=availability-zone,Values=$az" \
+      --query "Subnets[0].SubnetId" --output text)
+    if [[ "$existing_subnet_id" != "None" && -n "$existing_subnet_id" ]]; then
+      nat_subnet_ids["$az"]="$existing_subnet_id"
+      echo "NAT subnet for $az exists, skipping creation"
+    else
+      subnet_cidr="10.0.$((200+i+1)).0/24"
+      subnet_id=$(aws ec2 create-subnet \
+        --vpc-id "$vpc_id" \
+        --cidr-block "$subnet_cidr" \
+        --availability-zone "$az" \
+        --query "Subnet.SubnetId" \
+        --output text)
+      aws ec2 create-tags --resources "$subnet_id" --tags Key=Name,Value="$subnet_name"
+      nat_subnet_ids["$az"]="$subnet_id"
+      echo "NAT subnet for $az created"
+    fi
   done
 fi
 
