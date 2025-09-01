@@ -224,7 +224,6 @@ fi
 for i in "${!azs[@]}"; do
   az="${azs[$i]}"
   subnet_name="${projectname}-subnet-public-${projectenv}-${az}"
-  # Buscar si existe ya una subnet con ese nombre en la AZ y VPC
   existing_subnet_id=$(aws ec2 describe-subnets \
     --filters "Name=tag:Name,Values=$subnet_name" "Name=vpc-id,Values=$vpc_id" "Name=availability-zone,Values=$az" \
     --query "Subnets[0].SubnetId" --output text)
@@ -274,7 +273,6 @@ for i in "${!azs[@]}"; do
     echo "Private subnet for $az created"
   fi
 done
-
 
 # Nat subnet
 
