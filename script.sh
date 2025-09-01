@@ -334,6 +334,38 @@ for i in "${!azs[@]}"; do
   fi
 done
 
+private_rt_id=$(aws ec2 describe-route-tables \
+  --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=$private_rt_name" \
+  --query "RouteTables[0].RouteTableId" \
+  --output text)
+
+if [[ "$private_rt_id" != "None" && -n "$private_rt_id" ]]; then
+  echo "Private route table $private_rt_name exists, skipping creation"
+else
+  private_rt_id=$(aws ec2 create-route-table \
+    --vpc-id "$vpc_id" \
+    --query "RouteTable.RouteTableId" \
+    --output text)
+  aws ec2 create-tags --resources "$private_rt_id" --tags Key=Name,Value="$private_rt_name"
+  echo "Private route table $private_rt_name created: $private_rt_id"
+fi
+
+for az in "${!private_subnet_ids[@]}"; do
+  subnet_id="${private_subnet_ids[$az]}"
+  assoc_id=$(aws ec2 describe-route-tables \
+    --route-table-ids "$private_rt_id" \
+    --query "RouteTables[0].Associations[?SubnetId=='$subnet_id'].RouteTableAssociationId" \
+    --output text)
+  if [[ -n "$assoc_id" ]]; then
+    echo "Subnet $subnet_id already associated to private route table, skipping"
+  else
+    aws ec2 associate-route-table \
+      --route-table-id "$private_rt_id" \
+      --subnet-id "$subnet_id" >/dev/null
+    echo "Associated private subnet $subnet_id to route table $private_rt_id"
+  fi
+done
+
 # Nat subnet
 
 if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
@@ -357,6 +389,39 @@ if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
       aws ec2 create-tags --resources "$subnet_id" --tags Key=Name,Value="$subnet_name"
       nat_subnet_ids["$az"]="$subnet_id"
       echo "NAT subnet for $az created"
+    fi
+  done
+
+  nat_rt_id=$(aws ec2 describe-route-tables \
+    --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=$nat_rt_name" \
+    --query "RouteTables[0].RouteTableId" \
+    --output text)
+
+  if [[ "$nat_rt_id" != "None" && -n "$nat_rt_id" ]]; then
+    echo "NAT route table $nat_rt_name exists, skipping creation"
+  else
+    nat_rt_id=$(aws ec2 create-route-table \
+      --vpc-id "$vpc_id" \
+      --query "RouteTable.RouteTableId" \
+      --output text)
+    aws ec2 create-tags --resources "$nat_rt_id" --tags Key=Name,Value="$nat_rt_name"
+    echo "NAT route table $nat_rt_name created: $nat_rt_id"
+    # Aquí puedes poner la ruta que necesites para la subnet NAT
+  fi
+
+  for az in "${!nat_subnet_ids[@]}"; do
+    subnet_id="${nat_subnet_ids[$az]}"
+    assoc_id=$(aws ec2 describe-route-tables \
+      --route-table-ids "$nat_rt_id" \
+      --query "RouteTables[0].Associations[?SubnetId=='$subnet_id'].RouteTableAssociationId" \
+      --output text)
+    if [[ -n "$assoc_id" ]]; then
+      echo "Subnet $subnet_id already associated to NAT route table, skipping"
+    else
+      aws ec2 associate-route-table \
+        --route-table-id "$nat_rt_id" \
+        --subnet-id "$subnet_id" >/dev/null
+      echo "Associated NAT subnet $subnet_id to route table $nat_rt_id"
     fi
   done
 fi
