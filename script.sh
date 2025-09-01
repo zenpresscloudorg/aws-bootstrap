@@ -188,6 +188,7 @@ else
     aws s3api put-bucket-versioning --bucket "$s3_name" --versioning-configuration Status=Enabled >/dev/null 2>&1
     aws s3api put-bucket-policy --bucket "$s3_name" --policy file://s3_policy.json >/dev/null 2>&1
     echo "Bucket created"
+  fi
 fi
 
 rm s3_policy.json
