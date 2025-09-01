@@ -14,10 +14,10 @@
 ### 2) Clone repository
 
 ```bash
-git clone https://github.com/edup92/terraform-bootstrap.git
+git clone https://github.com/edup92/awstf-bootstrap.git
 ```
 
 ### 3) Give execution permissions and Run script
 ```bash
-cd terraform-bootstrap ; chmod +x script.sh ; ./script.sh
+cd awstf-bootstrap ; chmod +x script.sh ; ./script.sh
 ```
