@@ -383,7 +383,10 @@ if [[ -n "${public_domains[*]}" ]]; then
 fi
 if [[ -n "${private_domains[*]}" ]]; then
   for domain in "${private_domains[@]}"; do
-    hz_id="${private_hosted_zone_ids[$domain]}"
-    echo "Private Domain: $domain | Hosted Zone ID: $hz_id"
+    hz_id=$(aws route53 list-hosted-zones-by-name --dns-name "$domain." \
+      --query "HostedZones[?Name=='$domain.' && Config.PrivateZone==\`true\`].Id" \
+      --output text | head -n 1)
+    hz_id="${hz_id##*/}"
+    echo "Private domain: $domain | Hosted Zone ID: $hz_id"
   done
 fi
