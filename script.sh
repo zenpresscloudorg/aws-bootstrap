@@ -32,14 +32,17 @@ read -p "Enter github repo name: " ghrepo
 
 # End questions
 
+echo ""
 echo "--------------------------"
 echo "Starting"
 echo "--------------------------"
+echo ""
 sleep 3
 
 # Variables
 
 account_name=$(aws sts get-caller-identity --query Account --output text)
+account_region=$(echo $AWS_REGION);
 azs=($(aws ec2 describe-availability-zones --filters Name=region-name,Values=$(aws configure get region) --query "AvailabilityZones[].ZoneName" --output text))
 vpc_name="${projectname}-vpc-${projectenv}-bootstrap"
 role_name="${projectname}-role-${projectenv}-bootstrap"
@@ -320,7 +323,7 @@ if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
   else
     private_zone_id=$(aws route53 create-hosted-zone \
       --name "$subnet_private_domain_name" \
-      --vpc VPCRegion=$(aws configure get region),VPCId="$vpc_id" \
+      --vpc VPCRegion=$account_region,VPCId="$vpc_id" \ 
       --hosted-zone-config PrivateZone=true \
       --caller-reference "$(date +%s)-$subnet_private_domain_name" \
       --query "HostedZone.Id" --output text)
@@ -330,6 +333,11 @@ if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
 fi
 
 # Echos
+echo ""
+echo "--------------------------"
+echo "Results"
+echo "--------------------------"
+echo ""
 
 echo "S3 name: $s3_name"
 echo "Role name: $role_name"
