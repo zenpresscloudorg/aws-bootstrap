@@ -182,12 +182,15 @@ EOF
 if aws s3api head-bucket --bucket "$s3_name" 2>/dev/null; then
   echo "Bucket exists, skipping"
 else
+  # Intenta crear el bucket
   if aws s3api create-bucket --bucket "$s3_name" --region "$account_region" --create-bucket-configuration LocationConstraint="$account_region" >/dev/null 2>&1; then
     aws s3api put-public-access-block --bucket "$s3_name" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true >/dev/null 2>&1
     aws s3api put-bucket-encryption --bucket "$s3_name" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}' >/dev/null 2>&1
     aws s3api put-bucket-versioning --bucket "$s3_name" --versioning-configuration Status=Enabled >/dev/null 2>&1
     aws s3api put-bucket-policy --bucket "$s3_name" --policy file://s3_policy.json >/dev/null 2>&1
     echo "Bucket created"
+  else
+    echo "Bucket exists, skipping"
   fi
 fi
 
