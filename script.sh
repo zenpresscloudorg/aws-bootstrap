@@ -138,7 +138,7 @@ cat > role_policy.json <<EOF
       "Effect": "Allow",
       "Action": "dynamodb:*",
       "Resource": [
-        "arn:aws:dynamodb:${AWS_REGION}:*:table/${projectname}-ddb-${projectenv}-*"
+        "arn:aws:dynamodb:${account_region}:*:table/${projectname}-ddb-${projectenv}-*"
       ]
     }
   ]
@@ -188,7 +188,7 @@ EOF
 if aws s3api head-bucket --bucket "$s3_name" 2>/dev/null; then
   echo "Bucket exists, skipping"
 else
-  aws s3api create-bucket --bucket "$s3_name" --region "$AWS_REGION" --create-bucket-configuration LocationConstraint="$AWS_REGION" >/dev/null 2>&1
+  aws s3api create-bucket --bucket "$s3_name" --region "$account_region" --create-bucket-configuration LocationConstraint="$account_region" >/dev/null 2>&1
   aws s3api put-public-access-block --bucket "$s3_name" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true >/dev/null 2>&1
   aws s3api put-bucket-encryption --bucket "$s3_name" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}' >/dev/null 2>&1
   aws s3api put-bucket-versioning --bucket "$s3_name" --versioning-configuration Status=Enabled >/dev/null 2>&1
