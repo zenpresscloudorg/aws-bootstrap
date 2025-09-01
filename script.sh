@@ -280,10 +280,19 @@ for i in "${!azs[@]}"; do
   fi
 done
 
+igw_id=$(aws ec2 describe-internet-gateways \
+  --filters "Name=attachment.vpc-id,Values=$vpc_id" \
+  --query "InternetGateways[0].InternetGatewayId" --output text)
 
-igw_id=$(aws ec2 create-internet-gateway --query "InternetGateway.InternetGatewayId" --output text)
-aws ec2 attach-internet-gateway --vpc-id "$vpc_id" --internet-gateway-id "$igw_id"
-aws ec2 create-tags --resources "$igw_id" --tags Key=Name,Value="${projectname}-igw-${projectenv}-bootstrap"
+if [[ "$igw_id" != "None" && -n "$igw_id" ]]; then
+  echo "Internet Gateway $igw_id already attached to VPC $vpc_id, skipping creation"
+else
+  # Crea un nuevo IGW y lo adjunta a la VPC
+  igw_id=$(aws ec2 create-internet-gateway --query "InternetGateway.InternetGatewayId" --output text)
+  aws ec2 attach-internet-gateway --vpc-id "$vpc_id" --internet-gateway-id "$igw_id"
+  aws ec2 create-tags --resources "$igw_id" --tags Key=Name,Value="${projectname}-igw-${projectenv}-bootstrap"
+  echo "Internet Gateway $igw_id created and attached to VPC $vpc_id"
+fi
 
 # Private subnet
 
