@@ -235,7 +235,6 @@ if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
   fi
 fi
 
-
 # Echos
 
 echo "S3 name: $s3_name"
