@@ -45,7 +45,7 @@ vpc_name="${projectname}-vpc-${projectenv}-bootstrap"
 role_name="${projectname}-role-${projectenv}-bootstrap"
 policy_name="${projectname}-policy-${projectenv}-bootstrap"
 s3_name="${projectname}-s3-${projectenv}-bootstrap"
-keypair_name="${projectname}-keypair"
+keypair_name="${projectname}-keypair-${projectenv}-bootstrap"
 keypair_file="${keypair_name}.pem"
 declare -A hosted_zone_ids
 declare -A public_subnet_ids
