@@ -4,6 +4,8 @@
 - Creates tfstate s3 bucket with versioning, encryption and access only to role
 - Creates ec2 keypair for project
 - Add one or more public domains from the project to Route 53 (optional)
+- Creates AZ VPC with 1 public subnet, 1 private subnet and 1 private subnet with NAT router+tailscale (optional)
+- Creates one all open security group (testing purposes)
 
 # Usage instructions
 

@@ -5,6 +5,15 @@
 read -p "Enter project name: " projectname
 read -p "Enter environment (ej: dev, prod): " projectenv
 read -p "Do you want to add project domain/s to route53 (public domain/s) (optional) ? (y/n): " add_domains
+read -p "Enter CIDR block for the VPC (default 10.0.0.0/16): " vpc_cidr
+read -p "Do you want to enable IPv6 for the VPC? (y/n): " vpc_ipv6
+read -p "Do you want to create a private subnet with NAT (optional)? (y/n): " subnet_nat
+read -p "Do you want to create a private domain in Route53 for accessing your resources (e.g. servers)? (y/n): " subnet_private_domain
+
+if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
+  read -p "Enter the private domain name (e.g. internal.example.com): " subnet_private_domain_name
+  echo "Private domain to be created: $subnet_private_domain_name"
+fi
 
 if [[ "$add_domains" =~ ^[yY]$ ]]; then
   echo "Enter one or more domains separated by spaces (only public domains):"
@@ -12,16 +21,26 @@ if [[ "$add_domains" =~ ^[yY]$ ]]; then
   echo "Domains to be created: ${projectdomains[@]}"
 fi
 
+if [[ "$subnet_nat" =~ ^[yY]$ ]]; then
+  echo "A private subnet with NAT will be created."
+  read -s -p "Enter your Tailscale API key: " subnet_nat_tailscale
+  echo
+fi
+
 read -p "Enter github account name: " ghaccount
 read -p "Enter github repo name: " ghrepo
 
 # Variables
 
+account_name=$(aws sts get-caller-identity --query Account --output text)
+vpc_cidr="10.0.0.0/16"
+vpc_name="${projectname}-vpc-${projectenv}-bootstrap"
+
 role_name="${projectname}-role-${projectenv}-bootstrap"
 policy_name="${projectname}-policy-${projectenv}-bootstrap"
 s3_name="${projectname}-s3-${projectenv}-bootstrap"
 keypair_name="${projectname}-keypair"
-keypair_file="${key_name}.pem"
+keypair_file="${keypair_name}.pem"
 declare -A hosted_zone_ids
 
 # Create oidc
@@ -49,7 +68,7 @@ cat > trust_policy.json <<EOF
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::$account_name:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
@@ -68,6 +87,8 @@ else
   aws iam create-role --role-name "$role_name" --assume-role-policy-document file://trust_policy.json >/dev/null
   echo "Role created"
 fi
+
+role_arn=$(aws iam get-role --role-name "$role_name" --query "Role.Arn" --output text)
 
 rm trust_policy.json
 
@@ -107,7 +128,7 @@ cat > s3_policy.json <<EOF
       "Sid": "AllowOnlySpecificRole",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "$(aws iam get-role --role-name "$role_name" --query "Role.Arn" --output text)"
+        "AWS": "$role_arn"
       },
       "Action": "s3:*",
       "Resource": [
@@ -164,6 +185,8 @@ if [[ -n "${projectdomains[*]}" ]]; then
       --query "HostedZones[?Name=='$domain.'] | [?Config.PrivateZone==\`false\`].Id" \
       --output text | head -n 1)
     if [[ -n "$hz_id" ]]; then
+      hz_id="${hz_id##*/}"
+      hosted_zone_ids["$domain"]="$hz_id"
       echo "Hosted zone for $domain exists, skipping"
     else
       hosted_zone_id=$(aws route53 create-hosted-zone \
@@ -177,6 +200,41 @@ if [[ -n "${projectdomains[*]}" ]]; then
     fi
   done
 fi
+
+# VPC
+
+vpc_id=$(aws ec2 create-vpc \
+  --cidr-block "$vpc_cidr" \
+  --query "Vpc.VpcId" \
+  --output text)
+
+aws ec2 create-tags --resources "$vpc_id" --tags Key=Name,Value="$vpc_name"
+
+if [[ "$vpc_ipv6" =~ ^[yY]$ ]]; then
+  ipv6_assoc=$(aws ec2 associate-vpc-cidr-block --vpc-id "$vpc_id" --amazon-provided-ipv6-cidr-block --query "Ipv6CidrBlockAssociation.Ipv6CidrBlock" --output text)
+  echo "IPv6 enabled for VPC. IPv6 CIDR block: $ipv6_assoc"
+else
+  echo "IPv6 not enabled for VPC."
+fi
+
+if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
+  private_zone_id=$(aws route53 list-hosted-zones-by-name --dns-name "$subnet_private_domain_name." \
+    --query "HostedZones[?Name=='$subnet_private_domain_name.' && Config.PrivateZone==\`true\`].Id" \
+    --output text | head -n 1)
+  if [[ -n "$private_zone_id" ]]; then
+    private_zone_id="${private_zone_id##*/}"
+    private_zone_msg="Private hosted zone for $subnet_private_domain_name exists, skipping"
+  else
+    private_zone_id=$(aws route53 create-hosted-zone \
+      --name "$subnet_private_domain_name" \
+      --vpc VPCRegion=$(aws configure get region),VPCId="$vpc_id" \
+      --hosted-zone-config PrivateZone=true \
+      --query "HostedZone.Id" --output text)
+    private_zone_id="${private_zone_id##*/}"
+    private_zone_msg="Private hosted zone created: $subnet_private_domain_name"
+  fi
+fi
+
 
 # Echos
 
@@ -193,4 +251,9 @@ if [[ -n "${projectdomains[*]}" ]]; then
     echo ""
   done
 fi
-
+echo "VPC created: $vpc_id"
+if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
+  echo "Private hosted zone created: $subnet_private_domain_name (ID: $private_zone_id) and associated with VPC $vpc_id"
+else
+  echo "No private hosted zone was created."
+fi
