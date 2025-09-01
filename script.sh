@@ -233,12 +233,20 @@ fi
 
 # VPC
 
-vpc_id=$(aws ec2 create-vpc \
-  --cidr-block "$vpc_cidr" \
-  --query "Vpc.VpcId" \
-  --output text)
+vpc_id=$(aws ec2 describe-vpcs \
+    --filters "Name=tag:Name,Values=$vpc_name" \
+    --query "Vpcs[0].VpcId" --output text)
 
-aws ec2 create-tags --resources "$vpc_id" --tags Key=Name,Value="$vpc_name"
+if [[ "$vpc_id" != "None" && -n "$vpc_id" ]]; then
+  echo "VPC $vpc_name exists, skipping creation"
+else
+  vpc_id=$(aws ec2 create-vpc \
+    --cidr-block "$vpc_cidr" \
+    --query "Vpc.VpcId" \
+    --output text)
+  aws ec2 create-tags --resources "$vpc_id" --tags Key=Name,Value="$vpc_name"
+  echo "VPC $vpc_name created: $vpc_id"
+fi
 
 if [[ "$vpc_ipv6" =~ ^[yY]$ ]]; then
   ipv6_assoc=$(aws ec2 associate-vpc-cidr-block --vpc-id "$vpc_id" --amazon-provided-ipv6-cidr-block --query "Ipv6CidrBlockAssociation.Ipv6CidrBlock" --output text)
