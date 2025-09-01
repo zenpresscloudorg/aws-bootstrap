@@ -30,6 +30,13 @@ fi
 read -p "Enter github account name: " ghaccount
 read -p "Enter github repo name: " ghrepo
 
+# End questions
+
+echo "--------------------------"
+echo "Starting"
+echo "--------------------------"
+sleep 3
+
 # Variables
 
 account_name=$(aws sts get-caller-identity --query Account --output text)
@@ -315,6 +322,7 @@ if [[ "$subnet_private_domain" =~ ^[yY]$ ]]; then
       --name "$subnet_private_domain_name" \
       --vpc VPCRegion=$(aws configure get region),VPCId="$vpc_id" \
       --hosted-zone-config PrivateZone=true \
+      --caller-reference "$(date +%s)-$subnet_private_domain_name" \
       --query "HostedZone.Id" --output text)
     private_zone_id="${private_zone_id##*/}"
     private_zone_msg="Private hosted zone created: $subnet_private_domain_name"
