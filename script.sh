@@ -56,6 +56,9 @@ account_name=$(aws sts get-caller-identity --query Account --output text)
 account_region=$(echo $AWS_REGION);
 azs=($(aws ec2 describe-availability-zones --filters Name=region-name,Values=$account_region --query "AvailabilityZones[].ZoneName" --output text))
 vpc_name="${projectname}-vpc-${projectenv}-bootstrap"
+public_rt_name="${projectname}-rt-public-${projectenv}-bootstrap"
+private_rt_name="${projectname}-rt-private-${projectenv}-bootstrap"
+nat_rt_name="${projectname}-rt-nat-${projectenv}-bootstrap"
 role_name="${projectname}-role-${projectenv}-bootstrap"
 policy_name="${projectname}-policy-${projectenv}-bootstrap"
 s3_name="${projectname}-s3-${projectenv}-bootstrap"
@@ -267,6 +270,45 @@ else
   echo "Internet Gateway $igw_id created and attached to VPC $vpc_id"
 fi
 
+public_rt_id=$(aws ec2 describe-route-tables \
+  --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=$public_rt_name" \
+  --query "RouteTables[0].RouteTableId" \
+  --output text)
+
+if [[ "$public_rt_id" != "None" && -n "$public_rt_id" ]]; then
+  echo "Public route table $public_rt_name exists, skipping creation"
+else
+  public_rt_id=$(aws ec2 create-route-table \
+    --vpc-id "$vpc_id" \
+    --query "RouteTable.RouteTableId" \
+    --output text)
+  aws ec2 create-tags --resources "$public_rt_id" --tags Key=Name,Value="$public_rt_name"
+  echo "Public route table $public_rt_name created: $public_rt_id"
+
+  aws ec2 create-route \
+    --route-table-id "$public_rt_id" \
+    --destination-cidr-block 0.0.0.0/0 \
+    --gateway-id "$igw_id" >/dev/null
+  echo "Added default route (0.0.0.0/0) via IGW $igw_id"
+fi
+
+for az in "${!public_subnet_ids[@]}"; do
+  subnet_id="${public_subnet_ids[$az]}"
+  # Comprobar si ya está asociada
+  assoc_id=$(aws ec2 describe-route-tables \
+    --route-table-ids "$public_rt_id" \
+    --query "RouteTables[0].Associations[?SubnetId=='$subnet_id'].RouteTableAssociationId" \
+    --output text)
+  if [[ -n "$assoc_id" ]]; then
+    echo "Subnet $subnet_id already associated to public route table, skipping"
+  else
+    aws ec2 associate-route-table \
+      --route-table-id "$public_rt_id" \
+      --subnet-id "$subnet_id" >/dev/null
+    echo "Associated public subnet $subnet_id to route table $public_rt_id"
+  fi
+done
+
 # Private subnet
 
 for i in "${!azs[@]}"; do
@@ -369,7 +411,7 @@ echo ""
 echo "S3 name: $s3_name"
 echo "Role name: $role_name"
 echo "Keypair location: $(realpath "$keypair_file") PLEASE DOWNLOAD PEM"
-echo "VPC created: $vpc_id"
+echo "VPC Id: $vpc_id"
 if [[ -n "${public_domains[*]}" ]]; then
   for domain in "${public_domains[@]}"; do
     hz_id=$(aws route53 list-hosted-zones-by-name --dns-name "$domain." \
