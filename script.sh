@@ -35,18 +35,18 @@ read -p "Enter github repo name: " ghrepo
 ############# TEST
 
 
-$projectname="test"
-$projectenv="dev"
-$add_domains="y"
-$vpc_cidr="10.0.0.0/16"
-$vpc_ipv6="y"
-$subnet_nat="y"
-$subnet_private_domain="y"
-$subnet_private_domain_name="hola.local"
-$projectdomains="sdfsdfdfgfhdfhfgh.com"
-$subnet_nat_tailscale="1235"
-$ghaccount="test"
-$ghrepo="test"
+projectname="test"
+projectenv="dev"
+add_domains="y"
+vpc_cidr="10.0.0.0/16"
+vpc_ipv6="y"
+subnet_nat="y"
+subnet_private_domain="y"
+subnet_private_domain_name="hola.local"
+projectdomains="sdfsdfdfgfhdfhfgh.com"
+subnet_nat_tailscale="1235"
+ghaccount="test"
+ghrepo="test"
 
 # End questions
 
