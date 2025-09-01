@@ -19,5 +19,5 @@ git clone https://github.com/edup92/awstf-bootstrap.git
 
 ### 3) Give execution permissions and Run script
 ```bash
-cd awstf-bootstrap ; chmod +x script.sh ; ./script.sh
+chmod +x ./awstf-bootstrap/script.sh ; ./awstf-bootstrap/script.sh
 ```

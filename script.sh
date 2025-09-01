@@ -67,7 +67,7 @@ role_name="${projectname}-role-${projectenv}-bootstrap"
 policy_name="${projectname}-policy-${projectenv}-bootstrap"
 s3_name="${projectname}-s3-${projectenv}-bootstrap"
 keypair_name="${projectname}-keypair-${projectenv}-bootstrap"
-keypair_file="${keypair_name}.pem"
+keypair_file="$HOME/$keypair_name.pem"
 declare -A hosted_zone_ids
 declare -A public_subnet_ids
 declare -A private_subnet_ids
