@@ -216,13 +216,12 @@ else
     --output text)
   aws ec2 create-tags --resources "$vpc_id" --tags Key=Name,Value="$vpc_name"
   echo "VPC $vpc_name created: $vpc_id"
-fi
-
-if [[ "$vpc_ipv6" =~ ^[yY]$ ]]; then
-  aws ec2 associate-vpc-cidr-block --vpc-id "$vpc_id" --amazon-provided-ipv6-cidr-block --query "Ipv6CidrBlockAssociation.Ipv6CidrBlock" --output text
-  echo "IPv6 enabled for VPC"
-else
-  echo "IPv6 not enabled for VPC."
+  if [[ "$vpc_ipv6" =~ ^[yY]$ ]]; then
+    aws ec2 associate-vpc-cidr-block --vpc-id "$vpc_id" --amazon-provided-ipv6-cidr-block --query "Ipv6CidrBlockAssociation.Ipv6CidrBlock" --output text
+    echo "IPv6 enabled for VPC"
+  else
+    echo "IPv6 not enabled for VPC."
+  fi
 fi
 
 # Public subnet
