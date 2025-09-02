@@ -22,6 +22,7 @@
 pip install --user ansible
 pip install --user packaging
 ansible-galaxy collection install amazon.aws --force
+ansible-galaxy collection install community.aws --force
 ```
 
 ### 3) Clone repository
