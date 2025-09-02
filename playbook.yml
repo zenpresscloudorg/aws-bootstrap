@@ -63,7 +63,7 @@
           inline_policies: "{{ policy_role_oidc }}"
           state: present
       - name: OIDC IAM Role Policy
-        amazon.aws.iam_role_policy:
+        community.aws.iam_role_policy:
           role_name: "{{ role_name }}"
           policy_name: "{{ policy_name }}"
           policy_document: |
