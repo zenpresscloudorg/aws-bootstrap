@@ -36,9 +36,32 @@
             --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 \
             --query 'OpenIDConnectProviderArn' --output text
         when: fact_oidc_provider == ""
-      - name: OIDC IAM Role Policy
+      - name: OIDC Role Policy
         set_fact:
           policy_role_oidc: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Action": "s3:*",
+                    "Resource": [
+                      "arn:aws:s3:::{{ project_name }}-s3-{{ project_environment }}-*",
+                      "arn:aws:s3:::{{ project_name }}-s3-{{ project_environment }}-*/*"
+                    ]
+                  },
+                  {
+                    "Effect": "Allow",
+                    "Action": "dynamodb:*",
+                    "Resource": [
+                      "arn:aws:dynamodb:{{ caller_account.account }}:*:table/{{ project_name }}-ddb-{{ project_environment }}-*"
+                    ]
+                  }
+                ]
+              }  
+      - name: OIDC IAM Role Policy
+        set_fact:
+          trustpolicy_role_oidc: |
             {
               "Version": "2012-10-17",
               "Statement": [
@@ -59,5 +82,6 @@
       - name: OIDC IAM Role
         amazon.aws.iam_role:
           name: "{{ role_name }}"
-          assume_role_policy_document: "{{ policy_role_oidc }}"
+          assume_role_policy_document: "{{ trustpolicy_role_oidc }}"
+          inline_policies: "{{ policy_role_oidc }}"
           state: present
