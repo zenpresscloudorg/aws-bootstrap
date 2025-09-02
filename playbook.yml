@@ -3,7 +3,7 @@
   hosts: localhost
   gather_facts: no
   collections:
-    - community.aws
+    - amazon.aws
   vars:
     vpc_name:         "{{ project_name }}-{{ project_environment }}-vpc-main-bootstrap"
     sg_test_name:     "{{ project_name }}-{{ project_environment }}-sg-test-bootstrap"
