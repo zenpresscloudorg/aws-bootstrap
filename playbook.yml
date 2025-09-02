@@ -18,16 +18,13 @@
     keypair_name:     "{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap"
     keypair_file:     "{{ lookup('env', 'HOME') }}/{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap.pem"
   tasks:
-    - name: Ensure GitHub Actions OIDC provider exists
-      amazon.aws.aws_iam_openid_connect_provider:
-        url: "https://token.actions.githubusercontent.com"
-        client_id_list:
-          - "sts.amazonaws.com"
-        thumbprint_list:
-          - "6938fd4d98bab03faadb97b34396831e3780aea1"
+    - name: Ensure IAM role exists
+      community.aws.iam_role:
+        name: "{{ role_name }}"
+        assume_role_policy_document: "{{ assume_role_policy }}"
         state: present
-      register: oidc_provider_result
+      register: iam_role_result
 
-    - name: Show OIDC provider status
+    - name: Debug output
       debug:
-        var: oidc_provider_result
+        var: iam_role_result
