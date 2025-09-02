@@ -25,15 +25,15 @@ pip install ansible
 ### 3) Clone repository
 
 ```bash
-git clone https://github.com/edup92/awstf-bootstrap.git
+git clone https://github.com/edup92/aws-bootstrap.git
 ```
 
 ### 4) Modify vars.json data
 ```bash
-nano ./awstf-bootstrap/@vars.json"
+nano ./aws-bootstrap/@vars.json"
 ```
 
 ### 4) Run script
 ```bash
-ansible-playbook ./awstf-bootstrap/playbook.yml -e "/awstf-bootstrap/@vars.json"
+ansible-playbook ./aws-bootstrap/playbook.yml -e "/aws-bootstrap/@vars.json"
 ```
