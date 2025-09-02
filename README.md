@@ -19,7 +19,8 @@
 ### 2) Install ansible
 
 ```bash
-pip install --user ansible
+sudo yum install ansible -y
+ansible-galaxy collection install amazon.aws --force
 ```
 
 ### 3) Clone repository
