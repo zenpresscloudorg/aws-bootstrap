@@ -18,17 +18,9 @@
     keypair_name:     "{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap"
     keypair_file:     "{{ lookup('env', 'HOME') }}/{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap.pem"
   tasks:
-    - name: Get AWS caller facts
+    - name: Get AWS account
       amazon.aws.aws_caller_info:
-      register: caller_facts
-    - name: Debug output
-      debug:
-        var: caller_facts
-    - name: Get AWS Account ID (Shell fallback)
-      shell: aws sts get-caller-identity --query Account --output text
-      register: account_id_result
-    - set_fact:
-        account_id: "{{ account_id_result.stdout | trim }}"
+      register: caller_account
     - name: OIDC IAM Role Policy
       set_fact:
         policy_role_oidc: |
@@ -38,7 +30,7 @@
               {
                 "Effect": "Allow",
                 "Principal": {
-                  "Federated": "arn:aws:iam::{{ account_id }}:oidc-provider/token.actions.githubusercontent.com"
+                  "Federated": "arn:aws:iam::{{ caller_account.account }}:oidc-provider/token.actions.githubusercontent.com"
                 },
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
