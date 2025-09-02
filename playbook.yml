@@ -1,0 +1,17 @@
+---
+- name: AWS Bootstrap
+  hosts: localhost
+  gather_facts: no
+  collections:
+    - community.aws
+  vars:
+    aws_region: eu-west-1
+  tasks:
+    - name: Get AWS caller identity
+      aws_caller_info:
+        aws_region: "{{ aws_region }}"
+      register: aws_identity
+
+    - name: Show AWS Account ID
+      debug:
+        msg: "AWS Account ID is {{ aws_identity.account }}"
