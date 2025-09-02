@@ -19,28 +19,38 @@
     - name: Get AWS account
       amazon.aws.aws_caller_info:
       register: caller_account
-    - name: OIDC IAM Role Policy
-      set_fact:
-        policy_role_oidc: |
-          {
-            "Version": "2012-10-17",
-            "Statement": [
-              {
-                "Effect": "Allow",
-                "Principal": {
-                  "Federated": "arn:aws:iam::{{ caller_account.account }}:oidc-provider/token.actions.githubusercontent.com"
-                },
-                "Action": "sts:AssumeRoleWithWebIdentity",
-                "Condition": {
-                  "StringLike": {
-                    "token.actions.githubusercontent.com:sub": "repo:{{ github_account }}/{{ github_repo }}:*"
+    - name: Role
+      block:
+      - name: Create OIDC provider
+        amazon.aws.iam_openid_connect_provider:
+          url: https://token.actions.githubusercontent.com
+          client_id_list:
+            - sts.amazonaws.com
+          thumbprint_list:
+            - 6938fd4d98bab03faadb97b34396831e3780aea1
+          state: present
+      - name: OIDC IAM Role Policy
+        set_fact:
+          policy_role_oidc: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Federated": "arn:aws:iam::{{ caller_account.account }}:oidc-provider/token.actions.githubusercontent.com"
+                  },
+                  "Action": "sts:AssumeRoleWithWebIdentity",
+                  "Condition": {
+                    "StringLike": {
+                      "token.actions.githubusercontent.com:sub": "repo:{{ github_account }}/{{ github_repo }}:*"
+                    }
                   }
                 }
-              }
-            ]
-          }
-    - name: OIDC IAM Role
-      amazon.aws.iam_role:
-        name: "{{ role_name }}"
-        assume_role_policy_document: "{{ policy_role_oidc }}"
-        state: present
+              ]
+            }
+      - name: OIDC IAM Role
+        amazon.aws.iam_role:
+          name: "{{ role_name }}"
+          assume_role_policy_document: "{{ policy_role_oidc }}"
+          state: present
