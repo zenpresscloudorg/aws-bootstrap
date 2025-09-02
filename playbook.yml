@@ -22,7 +22,6 @@
       debug:
         msg: |
           # Variables del archivo JSON
-          project_name            = {{ project_name }}
           project_environment     = {{ project_environment }}
           vpc_cidr                = {{ vpc_cidr }}
           vpc_ipv6                = {{ vpc_ipv6 }}
