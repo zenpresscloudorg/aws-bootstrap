@@ -16,27 +16,19 @@
 
 ### 1) Login in AWS CloudShell (login in aws region you want to bootstrap)
 
-### 2) Install ansible
-
-```bash
-pip install --user ansible
-pip install --user packaging
-ansible-galaxy collection install amazon.aws --force
-ansible-galaxy collection install community.aws --force
-```
-
-### 3) Clone repository
+### 2) Clone repository
 
 ```bash
 git clone https://github.com/edup92/aws-bootstrap.git
 ```
 
-### 4) Modify vars.json data
+### 3) Give permissions
+
 ```bash
-nano ./aws-bootstrap/@vars.json"
+chmod +x ./aws-bootstrap/script.sh
 ```
 
 ### 4) Run script
 ```bash
-ansible-playbook ./aws-bootstrap/playbook.yml -e "@./aws-bootstrap/vars.json"
+./aws-bootstrap/script.sh
 ```
