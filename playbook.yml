@@ -19,21 +19,34 @@
     keypair_name: "{{ name_template | replace('element_type', 'keypair') | replace('element_name', 'main') }}"
     keypair_file: "{{ lookup('env', 'HOME') }}/{{ keypair_name }}.pem"
   tasks:
-    - name: Debug todas las variables de nombre
+    - name: Mostrar variables de configuración y nombres generados
       debug:
         msg: |
-          account_name = {{ account_name }}
-          account_region = {{ account_region }}
-          azs = {{ azs }}
-          vpc_name = {{ vpc_name }}
-          sg_test_name = {{ sg_test_name }}
-          sg_natgw_name = {{ sg_natgw_name }}
-          instance_natgw_name = {{ instance_natgw_name }}
-          public_rt_name = {{ public_rt_name }}
-          private_rt_name = {{ private_rt_name }}
-          nat_rt_name = {{ nat_rt_name }}
-          role_name = {{ role_name }}
-          policy_name = {{ policy_name }}
-          s3_name = {{ s3_name }}
-          keypair_name = {{ keypair_name }}
-          keypair_file = {{ keypair_file }}
+          # Variables del archivo JSON
+          project_name            = {{ project_name }}
+          project_environment     = {{ project_environment }}
+          vpc_cidr                = {{ vpc_cidr }}
+          vpc_ipv6                = {{ vpc_ipv6 }}
+          vpc_subnet_nat          = {{ vpc_subnet_nat }}
+          hostedzones_public      = {{ hostedzones_public }}
+          hostedzones_private     = {{ hostedzones_private }}
+          vpc_subnet_nat_tskey    = {{ vpc_subnet_nat_tskey }}
+          github_account          = {{ github_account }}
+          github_repo             = {{ github_repo }}
+          
+          # Plantilla base
+          name_template           = {{ name_template }}
+
+          # Nombres generados
+          vpc_name                = {{ vpc_name }}
+          sg_test_name            = {{ sg_test_name }}
+          sg_natgw_name           = {{ sg_natgw_name }}
+          instance_natgw_name     = {{ instance_natgw_name }}
+          public_rt_name          = {{ public_rt_name }}
+          private_rt_name         = {{ private_rt_name }}
+          nat_rt_name             = {{ nat_rt_name }}
+          role_name               = {{ role_name }}
+          policy_name             = {{ policy_name }}
+          s3_name                 = {{ s3_name }}
+          keypair_name            = {{ keypair_name }}
+          keypair_file            = {{ keypair_file }}
