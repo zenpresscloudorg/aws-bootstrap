@@ -19,7 +19,7 @@
     keypair_file:     "{{ lookup('env', 'HOME') }}/{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap.pem"
   tasks:
     - name: Ensure GitHub Actions OIDC provider exists
-      aws_iam_openid_connect_provider:
+      community.aws.aws_iam_openid_connect_provider:
         url: "https://token.actions.githubusercontent.com"
         client_id_list:
           - "sts.amazonaws.com"
