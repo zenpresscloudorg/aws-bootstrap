@@ -21,14 +21,21 @@
       register: caller_account
     - name: Role
       block:
+      - name: Check OIDC provider
+        shell: |
+          aws iam list-open-id-connect-providers --query "OpenIDConnectProviderList[?contains(Arn, 'token.actions.githubusercontent.com')].Arn | [0]" --output text
+        register: check_oidc_provider
+      - name: Set fact OIDC provider
+        set_fact:
+          oidc_provider_arn: "{{ check_oidc_provider.stdout != 'None' | ternary(existing_provider.stdout, '') }}"
       - name: Create OIDC provider
-        amazon.aws.iam_openid_connect_provider:
-          url: https://token.actions.githubusercontent.com
-          client_id_list:
-            - sts.amazonaws.com
-          thumbprint_list:
-            - 6938fd4d98bab03faadb97b34396831e3780aea1
-          state: present
+        shell: |
+          aws iam create-open-id-connect-provider \
+            --url https://token.actions.githubusercontent.com \
+            --client-id-list sts.amazonaws.com \
+            --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 \
+            --query 'OpenIDConnectProviderArn' --output text
+        when: oidc_provider_arn == ""
       - name: OIDC IAM Role Policy
         set_fact:
           policy_role_oidc: |
