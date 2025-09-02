@@ -27,7 +27,7 @@
         register: check_oidc_provider
       - name: Set fact OIDC provider
         set_fact:
-          oidc_provider_arn: "{{ check_oidc_provider.stdout != 'None' | ternary(existing_provider.stdout, '') }}"
+          fact_oidc_provider: "{{ check_oidc_provider.stdout != 'None' | ternary(existing_provider.stdout, '') }}"
       - name: Create OIDC provider
         shell: |
           aws iam create-open-id-connect-provider \
@@ -35,7 +35,7 @@
             --client-id-list sts.amazonaws.com \
             --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 \
             --query 'OpenIDConnectProviderArn' --output text
-        when: oidc_provider_arn == ""
+        when: fact_oidc_provider == ""
       - name: OIDC IAM Role Policy
         set_fact:
           policy_role_oidc: |
