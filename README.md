@@ -19,7 +19,8 @@
 ### 2) Install ansible
 
 ```bash
-sudo yum install ansible -y
+pip install --user ansible
+pip install --user packaging
 ansible-galaxy collection install amazon.aws --force
 ```
 

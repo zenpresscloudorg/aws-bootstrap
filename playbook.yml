@@ -2,8 +2,6 @@
 - name: AWS Bootstrap
   hosts: localhost
   gather_facts: no
-  collections:
-    - amazon.aws
   vars:
     vpc_name:         "{{ project_name }}-{{ project_environment }}-vpc-main-bootstrap"
     sg_test_name:     "{{ project_name }}-{{ project_environment }}-sg-test-bootstrap"
@@ -46,8 +44,3 @@
         name: "{{ role_name }}"
         assume_role_policy_document: "{{ policy_role_oidc }}"
         state: present
-      register: iam_role_result
-
-    - name: Debug output
-      debug:
-        var: iam_role_result
