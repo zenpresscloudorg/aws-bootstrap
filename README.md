@@ -1,3 +1,5 @@
+# AWS account bootstrap out of the box terraform
+
 # Whats inside
 
 - Creates github oidc role with limited access to project and env named resources
@@ -14,13 +16,24 @@
 
 ### 1) Login in AWS CloudShell (login in aws region you want to bootstrap)
 
-### 2) Clone repository
+### 2) Install ansible
+
+```bash
+pip install ansible
+```
+
+### 3) Clone repository
 
 ```bash
 git clone https://github.com/edup92/awstf-bootstrap.git
 ```
 
-### 3) Give execution permissions and Run script
+### 4) Modify vars.json data
 ```bash
-chmod +x ./awstf-bootstrap/script.sh ; ./awstf-bootstrap/script.sh
+nano ./awstf-bootstrap/@vars.json"
+```
+
+### 4) Run script
+```bash
+ansible-playbook ./awstf-bootstrap/playbook.yml -e "/awstf-bootstrap/@vars.json"
 ```
