@@ -35,5 +35,5 @@ nano ./aws-bootstrap/@vars.json"
 
 ### 4) Run script
 ```bash
-ansible-playbook ./aws-bootstrap/playbook.yml -e "/aws-bootstrap/@vars.json"
+ansible-playbook ./aws-bootstrap/playbook.yml -e "@./aws-bootstrap/vars.json"
 ```
