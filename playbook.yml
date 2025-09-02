@@ -5,13 +5,35 @@
   collections:
     - community.aws
   vars:
-    aws_region: eu-west-1
+    name_template: "{{ project_name }}-{{ project_environment }}-{{ element_type }}-{{ element_name }}-bootstrap"
+    vpc_name: "{{ name_template | replace('element_type', 'vpc') | replace('element_name', 'main') }}"
+    sg_test_name: "{{ name_template | replace('element_type', 'sg') | replace('element_name', 'test') }}"
+    sg_natgw_name: "{{ name_template | replace('element_type', 'sg') | replace('element_name', 'natgw') }}"
+    instance_natgw_name: "{{ name_template | replace('element_type', 'ec2') | replace('element_name', 'natgw') }}"
+    public_rt_name: "{{ name_template | replace('element_type', 'rt') | replace('element_name', 'public') }}"
+    private_rt_name: "{{ name_template | replace('element_type', 'rt') | replace('element_name', 'private') }}"
+    nat_rt_name: "{{ name_template | replace('element_type', 'rt') | replace('element_name', 'nat') }}"
+    role_name: "{{ name_template | replace('element_type', 'role') | replace('element_name', 'main') }}"
+    policy_name: "{{ name_template | replace('element_type', 'policy') | replace('element_name', 'main') }}"
+    s3_name: "{{ name_template | replace('element_type', 's3') | replace('element_name', 'main') }}"
+    keypair_name: "{{ name_template | replace('element_type', 'keypair') | replace('element_name', 'main') }}"
+    keypair_file: "{{ lookup('env', 'HOME') }}/{{ keypair_name }}.pem"
   tasks:
-    - name: Get AWS caller identity
-      aws_caller_info:
-        aws_region: "{{ aws_region }}"
-      register: aws_identity
-
-    - name: Show AWS Account ID
+    - name: Debug todas las variables de nombre
       debug:
-        msg: "AWS Account ID is {{ aws_identity.account }}"
+        msg: |
+          account_name = {{ account_name }}
+          account_region = {{ account_region }}
+          azs = {{ azs }}
+          vpc_name = {{ vpc_name }}
+          sg_test_name = {{ sg_test_name }}
+          sg_natgw_name = {{ sg_natgw_name }}
+          instance_natgw_name = {{ instance_natgw_name }}
+          public_rt_name = {{ public_rt_name }}
+          private_rt_name = {{ private_rt_name }}
+          nat_rt_name = {{ nat_rt_name }}
+          role_name = {{ role_name }}
+          policy_name = {{ policy_name }}
+          s3_name = {{ s3_name }}
+          keypair_name = {{ keypair_name }}
+          keypair_file = {{ keypair_file }}
