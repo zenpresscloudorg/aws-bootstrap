@@ -19,7 +19,7 @@
 ### 2) Install ansible
 
 ```bash
-pip install ansible
+pip install --user ansible
 ```
 
 ### 3) Clone repository
