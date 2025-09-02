@@ -27,7 +27,7 @@
         register: check_oidc_provider
       - name: Set fact OIDC provider
         set_fact:
-          fact_oidc_provider: "{{ check_oidc_provider.stdout != 'None' | ternary(existing_provider.stdout, '') }}"
+          fact_oidc_provider: "{{ check_oidc_provider.stdout != 'None' | ternary(check_oidc_provider.stdout, '') }}"
       - name: Create OIDC provider
         shell: |
           aws iam create-open-id-connect-provider \
