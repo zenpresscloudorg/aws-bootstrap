@@ -18,31 +18,16 @@
     keypair_name:     "{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap"
     keypair_file:     "{{ lookup('env', 'HOME') }}/{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap.pem"
   tasks:
-    - name: Mostrar variables de configuración y nombres generados
-      debug:
-        msg: |
-          # Variables del archivo JSON
-          project_name            = {{ project_name }}
-          project_environment     = {{ project_environment }}
-          vpc_cidr                = {{ vpc_cidr }}
-          vpc_ipv6                = {{ vpc_ipv6 }}
-          vpc_subnet_nat          = {{ vpc_subnet_nat }}
-          hostedzones_public      = {{ hostedzones_public }}
-          hostedzones_private     = {{ hostedzones_private }}
-          vpc_subnet_nat_tskey    = {{ vpc_subnet_nat_tskey }}
-          github_account          = {{ github_account }}
-          github_repo             = {{ github_repo }}
+    - name: Ensure GitHub Actions OIDC provider exists
+      aws_iam_openid_connect_provider:
+        url: "https://token.actions.githubusercontent.com"
+        client_id_list:
+          - "sts.amazonaws.com"
+        thumbprint_list:
+          - "6938fd4d98bab03faadb97b34396831e3780aea1"
+        state: present
+      register: oidc_provider_result
 
-          # Nombres generados
-          vpc_name                = {{ vpc_name }}
-          sg_test_name            = {{ sg_test_name }}
-          sg_natgw_name           = {{ sg_natgw_name }}
-          instance_natgw_name     = {{ instance_natgw_name }}
-          public_rt_name          = {{ public_rt_name }}
-          private_rt_name         = {{ private_rt_name }}
-          nat_rt_name             = {{ nat_rt_name }}
-          role_name               = {{ role_name }}
-          policy_name             = {{ policy_name }}
-          s3_name                 = {{ s3_name }}
-          keypair_name            = {{ keypair_name }}
-          keypair_file            = {{ keypair_file }}
+    - name: Show OIDC provider status
+      debug:
+        var: oidc_provider_result
