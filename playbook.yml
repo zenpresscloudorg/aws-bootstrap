@@ -22,6 +22,7 @@
       debug:
         msg: |
           # Variables del archivo JSON
+          project_name            = {{ project_name }}
           project_environment     = {{ project_environment }}
           vpc_cidr                = {{ vpc_cidr }}
           vpc_ipv6                = {{ vpc_ipv6 }}
@@ -31,9 +32,6 @@
           vpc_subnet_nat_tskey    = {{ vpc_subnet_nat_tskey }}
           github_account          = {{ github_account }}
           github_repo             = {{ github_repo }}
-          
-          # Plantilla base
-          name_template           = {{ name_template }}
 
           # Nombres generados
           vpc_name                = {{ vpc_name }}
