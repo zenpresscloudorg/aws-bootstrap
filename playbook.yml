@@ -38,7 +38,7 @@
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
                   "StringLike": {
-                    "token.actions.githubusercontent.com:sub": "repo:{{ ghaccount }}/{{ ghrepo }}:*"
+                    "token.actions.githubusercontent.com:sub": "repo:{{ github_account }}/{{ github_repo }}:*"
                   }
                 }
               }
