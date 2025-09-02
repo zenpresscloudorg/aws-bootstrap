@@ -21,19 +21,18 @@
     - name: Get AWS Account ID (Shell fallback)
       shell: aws sts get-caller-identity --query Account --output text
       register: account_id_result
-
     - set_fact:
         account_id: "{{ account_id_result.stdout | trim }}"
-
-    - set_fact:
-        assume_role_policy: |
+    - name: OIDC IAM Role Policy
+      set_fact:
+        policy_role_oidc: |
           {
             "Version": "2012-10-17",
             "Statement": [
               {
                 "Effect": "Allow",
                 "Principal": {
-                  "Federated": "arn:aws:iam::{{ account_id }}:oidc-provider/token.actions.githubusercontent.com"
+                  "Federated": "arn:aws:iam::{{ caller_facts.account }}:oidc-provider/token.actions.githubusercontent.com"
                 },
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
@@ -44,9 +43,13 @@
               }
             ]
           }
-
-    - name: Ensure IAM role exists with correct policy
-      community.aws.iam_role:
+    - name: OIDC IAM Role
+      amazon.aws.iam_role:
         name: "{{ role_name }}"
-        assume_role_policy_document: "{{ assume_role_policy }}"
+        assume_role_policy_document: "{{ policy_role_oidc }}"
         state: present
+      register: iam_role_result
+
+    - name: Debug output
+      debug:
+        var: iam_role_result
