@@ -10,8 +10,8 @@
     public_rt_name:   "{{ project_name }}-{{ project_environment }}-rt-public-bootstrap"
     private_rt_name:  "{{ project_name }}-{{ project_environment }}-rt-private-bootstrap"
     nat_rt_name:      "{{ project_name }}-{{ project_environment }}-rt-nat-bootstrap"
-    role_name:        "{{ project_name }}-{{ project_environment }}-role-main-bootstrap"
-    policy_name:      "{{ project_name }}-{{ project_environment }}-policy-main-bootstrap"
+    role_name:        "{{ project_name }}-{{ project_environment }}-role-oidc-bootstrap"
+    policy_name:      "{{ project_name }}-{{ project_environment }}-policy-oidc-bootstrap"
     s3_name:          "{{ project_name }}-{{ project_environment }}-s3-main-bootstrap"
     keypair_name:     "{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap"
     keypair_file:     "{{ lookup('env', 'HOME') }}/{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap.pem"
@@ -36,29 +36,6 @@
             --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 \
             --query 'OpenIDConnectProviderArn' --output text
         when: fact_oidc_provider == ""
-      - name: OIDC Role Policy
-        set_fact:
-          policy_role_oidc: |
-              {
-                "Version": "2012-10-17",
-                "Statement": [
-                  {
-                    "Effect": "Allow",
-                    "Action": "s3:*",
-                    "Resource": [
-                      "arn:aws:s3:::{{ project_name }}-s3-{{ project_environment }}-*",
-                      "arn:aws:s3:::{{ project_name }}-s3-{{ project_environment }}-*/*"
-                    ]
-                  },
-                  {
-                    "Effect": "Allow",
-                    "Action": "dynamodb:*",
-                    "Resource": [
-                      "arn:aws:dynamodb:{{ caller_account.account }}:*:table/{{ project_name }}-ddb-{{ project_environment }}-*"
-                    ]
-                  }
-                ]
-              }  
       - name: OIDC IAM Role Policy
         set_fact:
           trustpolicy_role_oidc: |
@@ -84,4 +61,30 @@
           name: "{{ role_name }}"
           assume_role_policy_document: "{{ trustpolicy_role_oidc }}"
           inline_policies: "{{ policy_role_oidc }}"
+          state: present
+      - name: OIDC IAM Role Policy
+        amazon.aws.iam_role_policy:
+          role_name: "{{ role_name }}"
+          policy_name: "{{ policy_name }}"
+          policy_document: |
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "s3:*",
+                  "Resource": [
+                    "arn:aws:s3:::{{ project_name }}-s3-{{ project_environment }}-*",
+                    "arn:aws:s3:::{{ project_name }}-s3-{{ project_environment }}-*/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "dynamodb:*",
+                  "Resource": [
+                    "arn:aws:dynamodb:{{ account_region }}:*:table/{{ project_name }}-ddb-{{ project_environment }}-*"
+                  ]
+                }
+              ]
+            }
           state: present
