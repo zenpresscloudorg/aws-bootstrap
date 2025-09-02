@@ -18,10 +18,33 @@
     keypair_name:     "{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap"
     keypair_file:     "{{ lookup('env', 'HOME') }}/{{ project_name }}-{{ project_environment }}-keypair-main-bootstrap.pem"
   tasks:
-    - name: Ensure IAM role exists
-      community.aws.iam_role:
+    - name: Get AWS caller facts
+      amazon.aws.aws_caller_facts:
+      register: caller_facts
+    - name: OIDC IAM Role Policy
+      set_fact:
+        policy_role_oidc: |
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Federated": "arn:aws:iam::{{ caller_facts.account }}:oidc-provider/token.actions.githubusercontent.com"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                  "StringLike": {
+                    "token.actions.githubusercontent.com:sub": "repo:{{ ghaccount }}/{{ ghrepo }}:*"
+                  }
+                }
+              }
+            ]
+          }
+    - name: OIDC IAM Role
+      amazon.aws.iam_role:
         name: "{{ role_name }}"
-        assume_role_policy_document: "{{ assume_role_policy }}"
+        assume_role_policy_document: "{{ policy_role_oidc }}"
         state: present
       register: iam_role_result
 
