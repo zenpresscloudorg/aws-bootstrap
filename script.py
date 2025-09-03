@@ -27,11 +27,10 @@ wrong_type = [var for var in ARRAY_VARS if var in data and not isinstance(data[v
 
 if missing or wrong_type:
     if missing:
-        print(f"Missing required variables in config.json: {', '.join(missing)}", file=sys.stderr)
+        print(f"Missing required variables in vars.json: {', '.join(missing)}", file=sys.stderr)
     if wrong_type:
         print(f"These variables must be arrays (even if empty): {', '.join(wrong_type)}", file=sys.stderr)
     sys.exit(1)
 
-# Opcional: mostrar todas las variables leídas
 for var in REQUIRED_VARS:
     print(f"{var}: {data[var]}")
