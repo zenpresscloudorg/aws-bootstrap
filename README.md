@@ -30,5 +30,5 @@ chmod +x ./aws-bootstrap/script.sh
 
 ### 4) Run script
 ```bash
-./aws-bootstrap/script.sh
+python3 ./aws-bootstrap/script.py
 ```
