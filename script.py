@@ -19,7 +19,7 @@ ARRAY_VARS = [
     "hostedzones_private"
 ]
 
-with open("vars.json") as f:
+with open("aws-bootstrap/vars.json") as f:
     data = json.load(f)
 
 missing = [var for var in REQUIRED_VARS if var not in data]
