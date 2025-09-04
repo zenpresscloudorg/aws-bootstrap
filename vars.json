@@ -1,7 +1,7 @@
 {
    "project_name":"test",
    "project_environment":"dev",
-   "vpc_cidr": "10.0.0.0", 
+   "vpc_cidr": "10.0.0.0/16", 
    "vpc_ipv6": "true",
    "vpc_subnet_nat": "true",
    "hostedzones_public": ["sdfsdfdfgfhdfhfgh.com"],
