@@ -153,6 +153,10 @@ trust_policy = {
 
 
 if role_name in role_names:
+    for r in list_roles:
+        if r["RoleName"] == role_name:
+            role_arn = r["Arn"]
+            break
     print("Role exists, skipping")
 else:
     role_data=iam.create_role(
