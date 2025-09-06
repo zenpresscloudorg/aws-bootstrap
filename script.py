@@ -295,8 +295,7 @@ else:
         assoc = ipv6_assoc.get("Ipv6CidrBlockAssociation", {})
         ipv6_cidr = assoc.get("Ipv6CidrBlock")
         state = assoc.get("Ipv6CidrBlockState", {}).get("State", "unknown")
-        if ipv6_cidr:
-            print(f"IPv6 enabled for VPC")
+        print(f"IPv6 enabled for VPC")
     else:
         print("IPv6 not enabled for VPC.")
 
