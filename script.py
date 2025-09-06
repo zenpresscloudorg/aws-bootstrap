@@ -269,15 +269,6 @@ vpc_network = ipaddress.ip_network(vpc_cidr)
 list_vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
 vpc_names = list_vpcs.get("Vpcs", [])
 
-# VPC
-
-vpc_name = f"{project_name}-{project_env}-vpc-bootstrap"
-vpc_cidr = vars["vpc_cidr"]
-vpc_ipv6 = vars["vpc_ipv6"]
-vpc_network = ipaddress.ip_network(vpc_cidr)
-list_vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
-vpc_names = list_vpcs.get("Vpcs", [])
-
 if vpc_names:
     print(f"VPC exists, skipping creation")
     vpc_id = vpc_names[0]["VpcId"]
@@ -301,17 +292,9 @@ else:
 
 # Public subnet
 
-
 public_subnet_names = []
+vpc_network = ipaddress.ip_network(vpc_cidr)
 public_subnet_cidr = list(vpc_network.subnets(new_prefix=26))
 
-for az in account_azs:
-    subnet_name = f"{project_name}-subnet-public-{project_env}-{az}-bootstrap"
-    list_public_subnet = ec2.describe_subnets(Filters=[{"Name": "tag:Name", "Values": [subnet_name]}])
-    for subnet in list_public_subnet.get("Subnets", []):
-        for tag in subnet.get("Tags", []):
-            if tag["Key"] == "Name":
-                public_subnet_names.append(tag["Value"])
-
-print("Nombres de las subnets encontradas:", public_subnet_names)
-print("test", public_subnet_cidr)
+for i, az in enumerate(account_azs):
+    print(f"{az}: {public_subnet_cidr[i]}")
