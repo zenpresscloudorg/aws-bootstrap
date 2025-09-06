@@ -266,6 +266,7 @@ vpc_name = f"{project_name}-{project_env}-vpc-bootstrap"
 vpc_cidr = vars["vpc_cidr"]
 vpc_ipv6 = vars["vpc_ipv6"]
 vpc_network = ipaddress.ip_network(vpc_cidr)
+public_subnet_cidr = list(vpc_network.subnets(new_prefix=26))
 list_vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
 vpc_names = list_vpcs.get("Vpcs", [])
 
@@ -282,9 +283,7 @@ else:
             VpcId=vpc_id,
             AmazonProvidedIpv6CidrBlock=True
         )
-        assoc = ipv6_assoc.get("Ipv6CidrBlockAssociation", {})
-        ipv6_cidr = assoc.get("Ipv6CidrBlock")
-        state = assoc.get("Ipv6CidrBlockState", {}).get("State", "unknown")
+        ipv6_assoc.get("Ipv6CidrBlockAssociation", {})
         print(f"IPv6 enabled for VPC")
     else:
         print("IPv6 not enabled for VPC.")
@@ -293,8 +292,28 @@ else:
 # Public subnet
 
 public_subnet_names = []
-vpc_network = ipaddress.ip_network(vpc_cidr)
+for az in account_azs:
+    subnet_name = f"{project_name}-subnet-public-{project_env}-{az}-bootstrap"
+    list_public_subnet = ec2.describe_subnets(Filters=[{"Name": "tag:Name", "Values": [subnet_name]}])
+    for subnet in list_public_subnet.get("Subnets", []):
+        for tag in subnet.get("Tags", []):
+            if tag["Key"] == "Name":
+                public_subnet_names.append(tag["Value"])
 public_subnet_cidr = list(vpc_network.subnets(new_prefix=26))
 
 for i, az in enumerate(account_azs):
-    print(f"{az}: {public_subnet_cidr[i]}")
+    subnet_name = f"{project_name}-{project_env}-subnet-public-{az}-bootstrap"
+    if subnet_name in public_subnet_names:
+        print(f"Subnet {subnet_name} exists, skipping creation")
+        continue
+    subnet_cidr = str(public_subnet_cidr[i])
+    print(f"Creando subnet: {subnet_name} con CIDR {subnet_cidr} en AZ {az}")
+    create_subnet_public = ec2.create_subnet(
+        VpcId=vpc_id,
+        CidrBlock=subnet_cidr,
+        AvailabilityZone=az
+    )
+    subnet_id = create_subnet_public["Subnet"]["SubnetId"]
+    ec2.create_tags(Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
+    print(f"Created subnet {subnet_name}: {subnet_id} with CIDR {subnet_cidr}")
+    public_subnet_names.append(subnet_name)
