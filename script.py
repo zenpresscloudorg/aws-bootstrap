@@ -172,7 +172,7 @@ print(f"Inline policy attached to role {role_name}.")
 
 # S3 Bucket
 
-s3_name = f"{project_name}-s3-{project_env}-bootstrap"
+s3_name = f"{project_name}-{project_env}-s3-bootstrap"
 list_buckets = [b['Name'] for b in s3.list_buckets()["Buckets"]]
 s3_policy = {
     "Version": "2012-10-17",
