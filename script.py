@@ -69,9 +69,9 @@ project_env = vars["project_environment"]
 hostedzones_public = vars["hostedzones_public"]
 hostedzones_private = vars["hostedzones_private"]
 vpc_subnet_private_tskey = vars["vpc_subnet_private_tskey"]
-instance_natgw_name = f"{project_name}-ec2-natgw-{project_env}-bootstrap"
-public_rt_name = f"{project_name}-rt-public-{project_env}-bootstrap"
-private_rt_name = f"{project_name}-rt-private-{project_env}-bootstrap"
+instance_natgw_name = f"{project_name}-{project_env}-ec2-natgw-bootstrap"
+public_rt_name = f"{project_name}-{project_env}-rt-public-bootstrap"
+private_rt_name = f"{project_name}-{project_env}-rt-private-bootstrap"
 
 # OIDC Github
 
@@ -98,8 +98,8 @@ else:
 
 # OICD Role
 
-role_name = f"{project_name}-role-oidc-{project_env}-bootstrap"
-policy_name = f"{project_name}-policy-oidc-{project_env}-bootstrap"
+role_name = f"{project_name}-{project_env}-role-oidc-bootstrap"
+policy_name = f"{project_name}-{project_env}-policy-oidc-bootstrap"
 github_account = vars["github_account"]
 github_repo = vars["github_repo"]
 list_roles = iam.list_roles()["Roles"]
@@ -235,7 +235,7 @@ else:
 
 # Keypair
 
-keypair_name = f"{project_name}-keypair-{project_env}-bootstrap"
+keypair_name = f"{project_name}-{project_env}-keypair-bootstrap"
 keypair_file = os.path.expandvars(f"$HOME/{keypair_name}.pem")
 keypair_names = [k["KeyName"] for k in ec2.describe_key_pairs()["KeyPairs"]]
 
@@ -250,7 +250,7 @@ else:
 
 # VPC
 
-vpc_name = f"{project_name}-vpc-{project_env}-bootstrap"
+vpc_name = f"{project_name}-{project_env}-vpc-bootstrap"
 vpc_cidr = vars["vpc_cidr"]
 vpc_ipv6 = vars["vpc_ipv6"]
 vpc_network = ipaddress.ip_network(vpc_cidr)
@@ -294,8 +294,8 @@ print("test", public_subnet_cidr)
 
 # Security Groups
 
-sg_test_name = f"{project_name}-sg-test-{project_env}"
-sg_natgw_name = f"{project_name}-sg-natgw-{project_env}"
+sg_test_name = f"{project_name}-{project_env}-sg-test-bootstrap"
+sg_natgw_name = f"{project_name}-{project_env}-sg-natgw-bootstrap"
 list_sg_test = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [sg_test_name]}])
 sg_test_groups = list_sg_test.get("SecurityGroups", [])
 list_sg_nat = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [sg_natgw_name]}])
