@@ -82,22 +82,27 @@ def normalize_url(url):
     return url.rstrip("/")
 oicd_arn = None
 
+print("Buscando OIDC provider existente con URL:", OIDC_URL)
+
 for list_oicd in iam.list_open_id_connect_providers()["OpenIDConnectProviderList"]:
     list_oicd_arn = list_oicd["Arn"]
     details = iam.get_open_id_connect_provider(OpenIDConnectProviderArn=list_oicd_arn)
+    print(f"ARN encontrado: {list_oicd_arn} --> URL: {details.get('Url','')}")
     if normalize_url(details.get("Url", "")) == normalize_url(OIDC_URL):
         oicd_arn = list_oicd_arn
         break
 
 if oicd_arn:
-    print("OIDC provider already exists, skipping")
+    print("OIDC provider already exists:", oicd_arn)
 else:
+    print("OIDC provider not found, creando uno nuevo...")
     iam.create_open_id_connect_provider(
         Url=OIDC_URL,
         ClientIDList=[CLIENT_ID],
         ThumbprintList=[THUMBPRINT]
     )
     print("OIDC provider created")
+
 
 
 # OICD Role
