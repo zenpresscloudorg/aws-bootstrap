@@ -3,6 +3,7 @@ import json
 import sys
 import ipaddress
 import boto3
+from urllib.parse import urlparse
 
 # Clients
 
@@ -78,17 +79,18 @@ private_rt_name = f"{project_name}-{project_env}-rt-private-bootstrap"
 OIDC_URL = "https://token.actions.githubusercontent.com"
 CLIENT_ID = "sts.amazonaws.com"
 THUMBPRINT = "6938fd4d98bab03faadb97b34396831e3780aea1"
-def normalize_url(url):
-    return url.rstrip("/")
 oicd_arn = None
-
-print("Buscando OIDC provider existente con URL:", OIDC_URL)
+def canonical_url(url):
+    url = url.strip().lower().rstrip("/")
+    if url.startswith("http"):
+        url = urlparse(url).netloc
+    return url
 
 for list_oicd in iam.list_open_id_connect_providers()["OpenIDConnectProviderList"]:
     list_oicd_arn = list_oicd["Arn"]
     details = iam.get_open_id_connect_provider(OpenIDConnectProviderArn=list_oicd_arn)
-    print(f"ARN encontrado: {list_oicd_arn} --> URL: {details.get('Url','')}")
-    if normalize_url(details.get("Url", "")) == normalize_url(OIDC_URL):
+    provider_url = canonical_url(details.get("Url", ""))
+    if provider_url == canonical_url(OIDC_URL):
         oicd_arn = list_oicd_arn
         break
 
@@ -102,8 +104,6 @@ else:
         ThumbprintList=[THUMBPRINT]
     )
     print("OIDC provider created")
-
-
 
 # OICD Role
 
