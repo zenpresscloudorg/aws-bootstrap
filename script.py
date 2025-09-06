@@ -270,20 +270,33 @@ vpc_network = ipaddress.ip_network(vpc_cidr)
 list_vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
 vpc_names = list_vpcs.get("Vpcs", [])
 
+# VPC
+
+vpc_name = f"{project_name}-{project_env}-vpc-bootstrap"
+vpc_cidr = vars["vpc_cidr"]
+vpc_ipv6 = vars["vpc_ipv6"]
+vpc_network = ipaddress.ip_network(vpc_cidr)
+list_vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
+vpc_names = list_vpcs.get("Vpcs", [])
+
 if vpc_names:
     print(f"VPC exists, skipping creation")
+    vpc_id = vpc_names[0]["VpcId"]
 else:
     create_vpc = ec2.create_vpc(CidrBlock=vpc_cidr)
     vpc_id = create_vpc["Vpc"]["VpcId"]
     ec2.create_tags(Resources=[vpc_id], Tags=[{"Key": "Name", "Value": vpc_name}])
-    print(f"VPC  created")
+    print(f"VPC created: {vpc_id}")
     if str(vpc_ipv6).lower() == "true":
         ipv6_assoc = ec2.associate_vpc_cidr_block(
             VpcId=vpc_id,
             AmazonProvidedIpv6CidrBlock=True
         )
-        print("DEBUG IPv6 ASSOC:", ipv6_assoc)
-        ipv6_cidr = ipv6_assoc["Ipv6CidrBlockAssociation"]["Ipv6CidrBlock"]
-        print(f"IPv6 enabled for VPC")
+        assoc = ipv6_assoc.get("Ipv6CidrBlockAssociation", {})
+        ipv6_cidr = assoc.get("Ipv6CidrBlock")
+        state = assoc.get("Ipv6CidrBlockState", {}).get("State", "unknown")
+        if ipv6_cidr:
+            print(f"IPv6 enabled for VPC")
     else:
         print("IPv6 not enabled for VPC.")
+
