@@ -151,13 +151,12 @@ trust_policy = {
     ]
 }
 
-
 if role_name in role_names:
     for r in list_roles:
         if r["RoleName"] == role_name:
             role_arn = r["Arn"]
             break
-    print("Role exists, skipping")
+    print("Role exists, skipping creation and policy update")
 else:
     role_data=iam.create_role(
         RoleName=role_name,
@@ -166,13 +165,13 @@ else:
     role_arn = role_data["Role"]["Arn"]
     print("Role created")
 
-iam.put_role_policy(
-    RoleName=role_name,
-    PolicyName=policy_name,
-    PolicyDocument=json.dumps(role_policy)
-)
+    iam.put_role_policy(
+        RoleName=role_name,
+        PolicyName=policy_name,
+        PolicyDocument=json.dumps(role_policy)
+    )
 
-print(f"Inline policy attached to role {role_name}.")
+    print(f"Inline policy attached to role {role_name}.")
 
 # S3 Bucket
 
