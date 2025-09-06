@@ -310,12 +310,29 @@ for subnet_type, cidr_list, label in [
         if subnet_name in existing_subnets:
             print(f"Subnet {label} {subnet_name} exists, skipping creation")
             continue
-        resp = ec2.create_subnet(
+        create_subnet = ec2.create_subnet(
             VpcId=vpc_id,
             CidrBlock=str(cidr_list[i]),
             AvailabilityZone=az
         )
-        subnet_id = resp["Subnet"]["SubnetId"]
+        subnet_id = create_subnet["Subnet"]["SubnetId"]
         ec2.create_tags(Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
         print(f"Created {label} subnet {subnet_name}")
         existing_subnets.append(subnet_name)
+
+# Gateways
+
+igw_id = None
+list_igws = ec2.describe_internet_gateways(Filters=[{"Name": "attachment.vpc-id", "Values": [vpc_id]}])["InternetGateways"]
+
+if list_igws:
+    igw_id = list_igws[0]["InternetGatewayId"]
+    print(f"Internet Gateway already exists, skipping creation")
+else:
+    create_igw = ec2.create_internet_gateway()
+    igw_id = create_igw["InternetGateway"]["InternetGatewayId"]
+    ec2.attach_internet_gateway(VpcId=vpc_id, InternetGatewayId=igw_id)
+    igw_name = f"{project_name}-{project_env}-igw-bootstrap"
+    ec2.create_tags(Resources=[igw_id], Tags=[{"Key": "Name", "Value": igw_name}])
+    print(f"Created and attached Internet Gateway to VPC")
+

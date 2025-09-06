@@ -38,28 +38,7 @@ fi
 
 # Public subnet
 
-for i in "${!azs[@]}"; do
-  az="${azs[$i]}"
-  subnet_name="${projectname}-subnet-public-${projectenv}-${az}"
-  existing_subnet_id=$(aws ec2 describe-subnets \
-    --filters "Name=tag:Name,Values=$subnet_name" "Name=vpc-id,Values=$vpc_id" "Name=availability-zone,Values=$az" \
-    --query "Subnets[0].SubnetId" --output text)
-  if [[ "$existing_subnet_id" != "None" && -n "$existing_subnet_id" ]]; then
-    public_subnet_ids["$az"]="$existing_subnet_id"
-    echo "Public subnet for $az exists, skipping creation"
-  else
-    subnet_cidr="10.0.$((i+1)).0/24"
-    subnet_id=$(aws ec2 create-subnet \
-      --vpc-id "$vpc_id" \
-      --cidr-block "$subnet_cidr" \
-      --availability-zone "$az" \
-      --query "Subnet.SubnetId" \
-      --output text)
-    aws ec2 create-tags --resources "$subnet_id" --tags Key=Name,Value="$subnet_name"
-    public_subnet_ids["$az"]="$subnet_id"
-    echo "Public subnet for $az created"
-  fi
-done
+
 
 igw_id=$(aws ec2 describe-internet-gateways \
   --filters "Name=attachment.vpc-id,Values=$vpc_id" \
