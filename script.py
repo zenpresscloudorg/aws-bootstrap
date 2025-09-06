@@ -95,7 +95,7 @@ for list_oicd in iam.list_open_id_connect_providers()["OpenIDConnectProviderList
         break
 
 if oicd_arn:
-    print("OIDC provider already exists:", oicd_arn)
+    print("OIDC provider already exists")
 else:
     print("OIDC provider not found, creando uno nuevo...")
     iam.create_open_id_connect_provider(
