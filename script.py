@@ -306,14 +306,12 @@ for i, az in enumerate(account_azs):
     if subnet_name in public_subnet_names:
         print(f"Subnet {subnet_name} exists, skipping creation")
         continue
-    subnet_cidr = str(public_subnet_cidr[i])
-    print(f"Creando subnet: {subnet_name} con CIDR {subnet_cidr} en AZ {az}")
     create_subnet_public = ec2.create_subnet(
         VpcId=vpc_id,
-        CidrBlock=subnet_cidr,
+        CidrBlock=str(public_subnet_cidr[i]),
         AvailabilityZone=az
     )
     subnet_id = create_subnet_public["Subnet"]["SubnetId"]
     ec2.create_tags(Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
-    print(f"Created subnet {subnet_name}: {subnet_id} with CIDR {subnet_cidr}")
+    print(f"Created subnet {subnet_name}")
     public_subnet_names.append(subnet_name)
