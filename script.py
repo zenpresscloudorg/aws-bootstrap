@@ -78,23 +78,27 @@ private_rt_name = f"{project_name}-{project_env}-rt-private-bootstrap"
 OIDC_URL = "https://token.actions.githubusercontent.com"
 CLIENT_ID = "sts.amazonaws.com"
 THUMBPRINT = "6938fd4d98bab03faadb97b34396831e3780aea1"
+def normalize_url(url):
+    return url.rstrip("/")
 oicd_arn = None
-list_oidc = iam.list_open_id_connect_providers()["OpenIDConnectProviderList"]
-oidc_arn = next(
-    (provider["Arn"] for provider in list_oidc
-     if iam.get_open_id_connect_provider(OpenIDConnectProviderArn=provider["Arn"]).get("Url") == OIDC_URL),
-    None
-)
+
+for list_oicd in iam.list_open_id_connect_providers()["OpenIDConnectProviderList"]:
+    list_oicd_arn = list_oicd["Arn"]
+    details = iam.get_open_id_connect_provider(OpenIDConnectProviderArn=list_oicd_arn)
+    if normalize_url(details.get("Url", "")) == normalize_url(OIDC_URL):
+        oicd_arn = list_oicd_arn
+        break
 
 if oicd_arn:
-    print(f"OIDC already exists, skipping")
+    print("OIDC provider already exists, skipping")
 else:
     iam.create_open_id_connect_provider(
         Url=OIDC_URL,
         ClientIDList=[CLIENT_ID],
         ThumbprintList=[THUMBPRINT]
     )
-    print(f"OIDC created")
+    print("OIDC provider created")
+
 
 # OICD Role
 
