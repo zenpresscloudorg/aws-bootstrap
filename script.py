@@ -293,7 +293,7 @@ else:
 
 public_subnet_names = []
 for az in account_azs:
-    subnet_name = f"{project_name}-subnet-public-{project_env}-{az}-bootstrap"
+    subnet_name = f"{project_name}-{project_env}-subnet-public-{az}-bootstrap"
     list_public_subnet = ec2.describe_subnets(Filters=[{"Name": "tag:Name", "Values": [subnet_name]}])
     for subnet in list_public_subnet.get("Subnets", []):
         for tag in subnet.get("Tags", []):
