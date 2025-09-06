@@ -266,7 +266,6 @@ vpc_name = f"{project_name}-{project_env}-vpc-bootstrap"
 vpc_cidr = vars["vpc_cidr"]
 vpc_ipv6 = vars["vpc_ipv6"]
 vpc_network = ipaddress.ip_network(vpc_cidr)
-public_subnet_cidr = list(vpc_network.subnets(new_prefix=26))
 list_vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
 vpc_names = list_vpcs.get("Vpcs", [])
 
@@ -288,30 +287,35 @@ else:
     else:
         print("IPv6 not enabled for VPC.")
 
+# Subnets
 
-# Public subnet
+list_subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])["Subnets"]
+public_subnet_block = list(vpc_network.subnets(new_prefix=24))[0] 
+private_subnet_block = list(vpc_network.subnets(new_prefix=24))[1] 
+public_subnet_cidr = list(public_subnet_block.subnets(new_prefix=26))
+private_subnet_cidr = list(private_subnet_block.subnets(new_prefix=26))
 
-public_subnet_names = []
-for az in account_azs:
-    subnet_name = f"{project_name}-{project_env}-subnet-public-{az}-bootstrap"
-    list_public_subnet = ec2.describe_subnets(Filters=[{"Name": "tag:Name", "Values": [subnet_name]}])
-    for subnet in list_public_subnet.get("Subnets", []):
-        for tag in subnet.get("Tags", []):
-            if tag["Key"] == "Name":
-                public_subnet_names.append(tag["Value"])
-public_subnet_cidr = list(vpc_network.subnets(new_prefix=26))
+existing_subnets = []
+for subnet in list_subnets:
+    for tag in subnet.get("Tags", []):
+        if tag["Key"] == "Name":
+            existing_subnets.append(tag["Value"])
 
-for i, az in enumerate(account_azs):
-    subnet_name = f"{project_name}-{project_env}-subnet-public-{az}-bootstrap"
-    if subnet_name in public_subnet_names:
-        print(f"Subnet {subnet_name} exists, skipping creation")
-        continue
-    create_subnet_public = ec2.create_subnet(
-        VpcId=vpc_id,
-        CidrBlock=str(public_subnet_cidr[i]),
-        AvailabilityZone=az
-    )
-    subnet_id = create_subnet_public["Subnet"]["SubnetId"]
-    ec2.create_tags(Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
-    print(f"Created subnet {subnet_name}")
-    public_subnet_names.append(subnet_name)
+for subnet_type, cidr_list, label in [
+    ("public", public_subnet_cidr, "public"),
+    ("private", private_subnet_cidr, "private"),
+]:
+    for i, az in enumerate(account_azs):
+        subnet_name = f"{project_name}-{project_env}-subnet-{subnet_type}-{az}-bootstrap"
+        if subnet_name in existing_subnets:
+            print(f"Subnet {label} {subnet_name} exists, skipping creation")
+            continue
+        resp = ec2.create_subnet(
+            VpcId=vpc_id,
+            CidrBlock=str(cidr_list[i]),
+            AvailabilityZone=az
+        )
+        subnet_id = resp["Subnet"]["SubnetId"]
+        ec2.create_tags(Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
+        print(f"Created {label} subnet {subnet_name}")
+        existing_subnets.append(subnet_name)
