@@ -278,6 +278,7 @@ else:
             VpcId=vpc_id,
             AmazonProvidedIpv6CidrBlock=True
         )
+        print("DEBUG IPv6 ASSOC:", ipv6_assoc)
         ipv6_cidr = ipv6_assoc["Ipv6CidrBlockAssociation"]["Ipv6CidrBlock"]
         print(f"IPv6 enabled for VPC")
     else:
