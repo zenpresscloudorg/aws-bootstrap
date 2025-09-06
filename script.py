@@ -298,3 +298,20 @@ else:
     else:
         print("IPv6 not enabled for VPC.")
 
+
+# Public subnet
+
+
+public_subnet_names = []
+public_subnet_cidr = list(vpc_network.subnets(new_prefix=26))
+
+for az in account_azs:
+    subnet_name = f"{project_name}-subnet-public-{project_env}-{az}-bootstrap"
+    list_public_subnet = ec2.describe_subnets(Filters=[{"Name": "tag:Name", "Values": [subnet_name]}])
+    for subnet in list_public_subnet.get("Subnets", []):
+        for tag in subnet.get("Tags", []):
+            if tag["Key"] == "Name":
+                public_subnet_names.append(tag["Value"])
+
+print("Nombres de las subnets encontradas:", public_subnet_names)
+print("test", public_subnet_cidr)
