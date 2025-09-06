@@ -3,10 +3,9 @@
    "project_environment":"dev",
    "vpc_cidr": "10.0.0.0/16", 
    "vpc_ipv6": "true",
-   "vpc_subnet_nat": "true",
    "hostedzones_public": ["sdfsdfdfgfhdfhfgh.com"],
    "hostedzones_private": ["hola.local"],
-   "vpc_subnet_nat_tskey": "1234",
+   "vpc_subnet_private_tskey": "1234",
    "github_account": "test",
    "github_repo": "test"
 }
