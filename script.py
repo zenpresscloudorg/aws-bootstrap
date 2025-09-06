@@ -379,8 +379,16 @@ list_natwg = ec2.describe_instances(Filters=[
     {"Name": "tag:Name", "Values": [instance_name]},
     {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
 ])["Reservations"]
-
-
+userdata_script = """#!/bin/bash
+sysctl -w net.ipv4.ip_forward=1
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+ETH_IFACE=$(ip route | grep default | awk '{print $5}')
+iptables -t nat -A POSTROUTING -o $ETH_IFACE -j MASQUERADE
+yum install -y iptables-services
+service iptables save
+systemctl enable iptables
+systemctl start iptables
+"""
 
 if list_igws:
     igw_id = list_igws[0]["InternetGatewayId"]
@@ -393,14 +401,9 @@ else:
     ec2.create_tags(Resources=[igw_id], Tags=[{"Key": "Name", "Value": igw_name}])
     print(f"Created and attached Internet Gateway to VPC")
 
-
-
-
-
 if list_natwg:
-    print(f"Instance {instance_name} already exists, skipping creation")
+    print(f"Instance natgw already exists, skipping creation")
 else:
-    # Busca una subnet pública
     subnet_id_nat = None
     for subnet in list_subnets:
         for tag in subnet.get("Tags", []):
@@ -409,10 +412,6 @@ else:
                 break
         if subnet_id_nat:
             break
-
-    if not subnet_id_nat:
-        print("No public subnet found to launch the NAT GW EC2 instance.", file=sys.stderr)
-        sys.exit(1)
 
     create_instance_natgw = ec2.run_instances(
         ImageId=ami_id,
@@ -428,6 +427,7 @@ else:
                 "AssociatePublicIpAddress": True
             }
         ],
+        UserData=userdata_script,
         TagSpecifications=[
             {
                 "ResourceType": "instance",
@@ -445,4 +445,8 @@ else:
     )
 
     natgw_instance_id = create_instance_natgw["Instances"][0]["InstanceId"]
-    print(f"Created NAT Gateway EC2 instance: {natgw_instance_id}")
+    network_interface_id = create_instance_natgw["Instances"][0]["NetworkInterfaces"][0]["NetworkInterfaceId"]
+    ec2.modify_instance_attribute( InstanceId=natgw_instance_id,SourceDestCheck={'Value': False})
+    allocation = ec2.allocate_address(Domain='vpc')
+    ec2.associate_address(AllocationId=allocation['AllocationId'], NetworkInterfaceId=network_interface_id)
+    print(f"Created NAT Gateway EC2 instance and Elastic IP assigned to natgw_instance")
