@@ -62,6 +62,16 @@ except Exception:
 account_id = sts.get_caller_identity()["Account"]
 account_region = session.region_name
 account_azs = [az["ZoneName"] for az in ec2.describe_availability_zones()["AvailabilityZones"]]
+ami_al2023 = ec2.describe_images(Owners=['amazon'],Filters=[
+        {"Name": "name", "Values": ["al2023-ami-*-arm64"]},
+        {"Name": "architecture", "Values": ["arm64"]},
+        {"Name": "state", "Values": ["available"]},
+        {"Name": "root-device-type", "Values": ["ebs"]},
+        {"Name": "virtualization-type", "Values": ["hvm"]},
+    ]
+)
+ami = sorted(ami_al2023['Images'], key=lambda x: x['CreationDate'], reverse=True)[0]
+ami_id = ami['ImageId']
 project_name = vars["project_name"]
 project_env = vars["project_environment"]
 
@@ -70,7 +80,6 @@ project_env = vars["project_environment"]
 hostedzones_public = vars["hostedzones_public"]
 hostedzones_private = vars["hostedzones_private"]
 vpc_subnet_private_tskey = vars["vpc_subnet_private_tskey"]
-instance_natgw_name = f"{project_name}-{project_env}-ec2-natgw-bootstrap"
 public_rt_name = f"{project_name}-{project_env}-rt-public-bootstrap"
 private_rt_name = f"{project_name}-{project_env}-rt-private-bootstrap"
 
@@ -247,7 +256,7 @@ else:
 
 # Keypair
 
-keypair_name = f"{project_name}-{project_env}-keypair-bootstrap"
+keypair_name = f"{project_name}-{project_env}-keypair-main-bootstrap"
 keypair_file = os.path.expandvars(f"$HOME/{keypair_name}.pem")
 keypair_names = [k["KeyName"] for k in ec2.describe_key_pairs()["KeyPairs"]]
 
@@ -287,6 +296,44 @@ else:
     else:
         print("IPv6 not enabled for VPC.")
 
+# Security Groups
+
+sg_test_name = f"{project_name}-{project_env}-sg-test-bootstrap"
+sg_natgw_name = f"{project_name}-{project_env}-sg-natgw-bootstrap"
+list_sg_test = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [sg_test_name]}])
+sg_test_groups = list_sg_test.get("SecurityGroups", [])
+list_sg_nat = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [sg_natgw_name]}])
+sg_natgw_groups = list_sg_nat.get("SecurityGroups", [])
+
+if sg_test_groups:
+    print(f"Security Group test exists, skipping creation")
+else:
+    sg_test = ec2.create_security_group(
+        GroupName=sg_test_name,
+        Description="All open (test)",
+        VpcId=vpc_id
+    )
+    sg_test_id = sg_test["GroupId"]
+    ec2.authorize_security_group_ingress(
+        GroupId=sg_test_id,
+        IpPermissions=[{
+            "IpProtocol": "-1",  # ALL protocols
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+        }]
+    )
+    print(f"Security Group {sg_test_name} created")
+
+if sg_natgw_groups:
+    print(f"Security Group NAT exists, skipping creation")
+else:
+    sg_natgw = ec2.create_security_group(
+        GroupName=sg_natgw_name,
+        Description="All inbound blocked (NAT)",
+        VpcId=vpc_id
+    )
+    sg_natgw_id = sg_natgw["GroupId"]
+    print(f"Security Group NAT created")
+
 # Subnets
 
 list_subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])["Subnets"]
@@ -294,8 +341,8 @@ public_subnet_block = list(vpc_network.subnets(new_prefix=24))[0]
 private_subnet_block = list(vpc_network.subnets(new_prefix=24))[1] 
 public_subnet_cidr = list(public_subnet_block.subnets(new_prefix=26))
 private_subnet_cidr = list(private_subnet_block.subnets(new_prefix=26))
-
 existing_subnets = []
+
 for subnet in list_subnets:
     for tag in subnet.get("Tags", []):
         if tag["Key"] == "Name":
@@ -323,7 +370,17 @@ for subnet_type, cidr_list, label in [
 # Gateways
 
 igw_id = None
-list_igws = ec2.describe_internet_gateways(Filters=[{"Name": "attachment.vpc-id", "Values": [vpc_id]}])["InternetGateways"]
+instance_name = f"{project_name}-{project_env}-ec2-natgw-bootstrap"
+volume_name = f"{project_name}-{project_env}-ebs-natgw-bootstrap"
+list_igws = ec2.describe_internet_gateways(Filters=[
+    {"Name": "attachment.vpc-id",
+    "Values": [vpc_id]}])["InternetGateways"]
+list_natwg = ec2.describe_instances(Filters=[
+    {"Name": "tag:Name", "Values": [instance_name]},
+    {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
+])["Reservations"]
+
+
 
 if list_igws:
     igw_id = list_igws[0]["InternetGatewayId"]
@@ -336,3 +393,56 @@ else:
     ec2.create_tags(Resources=[igw_id], Tags=[{"Key": "Name", "Value": igw_name}])
     print(f"Created and attached Internet Gateway to VPC")
 
+
+
+
+
+if list_natwg:
+    print(f"Instance {instance_name} already exists, skipping creation")
+else:
+    # Busca una subnet pública
+    subnet_id_nat = None
+    for subnet in list_subnets:
+        for tag in subnet.get("Tags", []):
+            if tag["Key"] == "Name" and "-subnet-public-" in tag["Value"]:
+                subnet_id_nat = subnet["SubnetId"]
+                break
+        if subnet_id_nat:
+            break
+
+    if not subnet_id_nat:
+        print("No public subnet found to launch the NAT GW EC2 instance.", file=sys.stderr)
+        sys.exit(1)
+
+    create_instance_natgw = ec2.run_instances(
+        ImageId=ami_id,
+        InstanceType="t4g.nano",
+        KeyName=keypair_name,
+        MinCount=1,
+        MaxCount=1,
+        NetworkInterfaces=[
+            {
+                "SubnetId": subnet_id_nat,
+                "DeviceIndex": 0,
+                "Groups": [sg_natgw_id],
+                "AssociatePublicIpAddress": True
+            }
+        ],
+        TagSpecifications=[
+            {
+                "ResourceType": "instance",
+                "Tags": [
+                    {"Key": "Name", "Value": instance_name}
+                ]
+            },
+            {
+                "ResourceType": "volume",
+                "Tags": [
+                    {"Key": "Name", "Value": volume_name}
+                ]
+            }
+        ]
+    )
+
+    natgw_instance_id = create_instance_natgw["Instances"][0]["InstanceId"]
+    print(f"Created NAT Gateway EC2 instance: {natgw_instance_id}")

@@ -39,21 +39,6 @@ fi
 # Public subnet
 
 
-
-igw_id=$(aws ec2 describe-internet-gateways \
-  --filters "Name=attachment.vpc-id,Values=$vpc_id" \
-  --query "InternetGateways[0].InternetGatewayId" --output text)
-
-if [[ "$igw_id" != "None" && -n "$igw_id" ]]; then
-  echo "Internet Gateway $igw_id already exists, skipping creation"
-else
-  # Crea un nuevo IGW y lo adjunta a la VPC
-  igw_id=$(aws ec2 create-internet-gateway --query "InternetGateway.InternetGatewayId" --output text)
-  aws ec2 attach-internet-gateway --vpc-id "$vpc_id" --internet-gateway-id "$igw_id"
-  aws ec2 create-tags --resources "$igw_id" --tags Key=Name,Value="${projectname}-igw-${projectenv}-bootstrap"
-  echo "Internet Gateway $igw_id created and attached to VPC $vpc_id"
-fi
-
 public_rt_id=$(aws ec2 describe-route-tables \
   --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=$public_rt_name" \
   --query "RouteTables[0].RouteTableId" \
@@ -94,29 +79,6 @@ for az in "${!public_subnet_ids[@]}"; do
 done
 
 # Private subnet
-
-for i in "${!azs[@]}"; do
-  az="${azs[$i]}"
-  subnet_name="${projectname}-subnet-private-${projectenv}-${az}"
-  existing_subnet_id=$(aws ec2 describe-subnets \
-    --filters "Name=tag:Name,Values=$subnet_name" "Name=vpc-id,Values=$vpc_id" "Name=availability-zone,Values=$az" \
-    --query "Subnets[0].SubnetId" --output text)
-  if [[ "$existing_subnet_id" != "None" && -n "$existing_subnet_id" ]]; then
-    private_subnet_ids["$az"]="$existing_subnet_id"
-    echo "Private subnet for $az exists, skipping creation"
-  else
-    subnet_cidr="10.0.$((100+i+1)).0/24"
-    subnet_id=$(aws ec2 create-subnet \
-      --vpc-id "$vpc_id" \
-      --cidr-block "$subnet_cidr" \
-      --availability-zone "$az" \
-      --query "Subnet.SubnetId" \
-      --output text)
-    aws ec2 create-tags --resources "$subnet_id" --tags Key=Name,Value="$subnet_name"
-    private_subnet_ids["$az"]="$subnet_id"
-    echo "Private subnet for $az created"
-  fi
-done
 
 private_rt_id=$(aws ec2 describe-route-tables \
   --filters "Name=vpc-id,Values=$vpc_id" "Name=tag:Name,Values=$private_rt_name" \
