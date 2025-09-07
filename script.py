@@ -15,7 +15,10 @@ ec2 = boto3.client("ec2")
 
 # Load vars
 
-with open("aws-bootstrap/vars.json") as f:
+script_dir = os.path.dirname(os.path.abspath(__file__))
+vars_path = os.path.join(script_dir, "vars.json")
+
+with open(vars_path) as f:
     vars = json.load(f)
 
 # Validation
@@ -79,7 +82,7 @@ project_env = vars["project_environment"]
 
 hostedzones_public = vars["hostedzones_public"]
 hostedzones_private = vars["hostedzones_private"]
-vpc_subnet_private_tskey = vars["vpc_subnet_private_tskey"]
+
 public_rt_name = f"{project_name}-{project_env}-rt-public-bootstrap"
 private_rt_name = f"{project_name}-{project_env}-rt-private-bootstrap"
 
@@ -374,6 +377,7 @@ for subnet_type, cidr_list, label in [
 igw_id = None
 instance_name = f"{project_name}-{project_env}-ec2-natgw-bootstrap"
 volume_name = f"{project_name}-{project_env}-ebs-natgw-bootstrap"
+vpc_subnet_private_tskey = vars["vpc_subnet_private_tskey"]
 list_igws = ec2.describe_internet_gateways(Filters=[
     {"Name": "attachment.vpc-id",
     "Values": [vpc_id]}])["InternetGateways"]
