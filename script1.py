@@ -13,7 +13,7 @@ session = boto3.session.Session()
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 
-def get_github_oidc_provider_arn(iam) -> str | None:
+def get_github_oidc_provider_arn(iam):
     """
     Checks if the GitHub OIDC provider exists in the AWS account.
     Returns the ARN if found, otherwise None.
@@ -25,7 +25,7 @@ def get_github_oidc_provider_arn(iam) -> str | None:
         print(d)
     return None
 
-def create_github_oidc_provider(iam) -> str:
+def create_github_oidc_provider(iam):
     """
     Creates the GitHub OIDC provider in the AWS account and returns its ARN.
     """
