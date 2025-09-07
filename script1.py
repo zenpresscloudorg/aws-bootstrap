@@ -104,7 +104,7 @@ def main():
             {
                 "Effect": "Allow",
                 "Principal": {
-                    "Federated": f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
+                    "Federated": f"arn:aws:iam::{account_id}:oidc-provider/{oidc_url}"
                 },
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
