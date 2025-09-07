@@ -97,7 +97,7 @@ def main():
 
     # Role
 
-    role_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-role-oidc-bootstrap"
+    role_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-role-bootstrap"
     trust_policy = {
         "Version": "2012-10-17",
         "Statement": [
