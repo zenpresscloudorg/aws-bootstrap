@@ -13,13 +13,13 @@ session = boto3.session.Session()
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 
-def load_vars_json():
+def load_vars_json(file):
     """
     Loads var.json from the same directory as the script.
     Returns the parsed dictionary.
     """
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    vars_path = os.path.join(script_dir, "var.json")
+    vars_path = os.path.join(script_dir, file)
     with open(vars_path, "r") as f:
         vars_data = json.load(f)
     return vars_data
@@ -79,7 +79,7 @@ def main():
 
     # Vars
 
-    vars_json = load_vars_json()
+    vars_json = load_vars_json("vars.json")
 
     # OIDC Provider
 
