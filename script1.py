@@ -13,17 +13,19 @@ session = boto3.session.Session()
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 
-def get_github_oidc_provider_arn(iam):
+def github_oidc_provider_exists(iam):
     """
-    Checks if the GitHub OIDC provider exists in the AWS account.
-    Returns the ARN if found, otherwise None.
+    Returns True if the GitHub OIDC provider for GitHub Actions exists, False otherwise.
     """
-    OIDC_URL = "https://token.actions.githubusercontent.com"
     for p in iam.list_open_id_connect_providers().get("OpenIDConnectProviderList", []):
         arn = p["Arn"]
         d = iam.get_open_id_connect_provider(OpenIDConnectProviderArn=arn)
-        print(d)
-    return None
+        url = d.get("Url", "")
+        # Direct string edit: remove "https://" from url
+        if url == "token.actions.githubusercontent.com":
+            return True
+    return False
+
 
 def create_github_oidc_provider(iam):
     """
