@@ -41,6 +41,7 @@ def create_github_oidc_provider(iam):
 
 def main():
     arn = get_github_oidc_provider_arn(iam)
+    print(arn)
     #if arn:
     #    print(f"OIDC provider exists: {arn}")
     #else:
