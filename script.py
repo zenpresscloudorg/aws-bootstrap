@@ -465,6 +465,7 @@ else:
     natgw_instance_id = create_instance_natgw["Instances"][0]["InstanceId"]
     network_interface_id = create_instance_natgw["Instances"][0]["NetworkInterfaces"][0]["NetworkInterfaceId"]
     waiter_natgw_instance = ec2.get_waiter('instance_running')
+    print(f"Waiting for natgw instance is 'running'...")
     waiter_natgw_instance.wait(InstanceIds=[natgw_instance_id])
     allocation = ec2.allocate_address(Domain='vpc')
     ec2.associate_address(AllocationId=allocation['AllocationId'],NetworkInterfaceId=network_interface_id)
