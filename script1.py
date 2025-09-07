@@ -13,6 +13,17 @@ session = boto3.session.Session()
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 
+def load_vars_json():
+    """
+    Loads var.json from the same directory as the script.
+    Returns the parsed dictionary.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    vars_path = os.path.join(script_dir, "var.json")
+    with open(vars_path, "r") as f:
+        vars_data = json.load(f)
+    return vars_data
+
 def check_oidc_provider_exists(iam, url):
     """
     Returns True if the GitHub OIDC provider for GitHub Actions exists, False otherwise.
@@ -66,6 +77,10 @@ def create_iam_role_with_name_only(iam, role_name):
 
 def main():
 
+    # Vars
+
+    vars_json = load_vars_json()
+
     # OIDC Provider
 
     oidc_url = "token.actions.githubusercontent.com"
@@ -81,7 +96,7 @@ def main():
 
     # Role
 
-    role_name = f"{project_name}-{project_env}-role-oidc-bootstrap"
+    role_name = f"{vars_json.project_name}-{vars_json.project_env}-role-oidc-bootstrap"
 
     if check_iam_role_exists(iam, role_name):
         print(f"IAM role already exists.")
