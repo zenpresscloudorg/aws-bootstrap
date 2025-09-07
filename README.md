@@ -22,7 +22,7 @@
 git clone https://github.com/edup92/aws-bootstrap.git
 ```
 
-### 3) Give permissions
+### 3) Run
 
 ```bash
 python3 ./aws-bootstrap/script.py
