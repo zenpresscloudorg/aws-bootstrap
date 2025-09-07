@@ -96,7 +96,7 @@ def main():
 
     # Role
 
-    role_name = f"{vars_json['project_name']}-{vars_json['project_env']}-role-oidc-bootstrap"
+    role_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-role-oidc-bootstrap"
 
     if check_iam_role_exists(iam, role_name):
         print(f"IAM role already exists.")
