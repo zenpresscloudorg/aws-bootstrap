@@ -9,9 +9,9 @@ from urllib.parse import urlparse
 
 iam = boto3.client("iam")
 sts = boto3.client("sts")
-session = boto3.session.Session()
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
+session = boto3.session.Session()
 
 def load_vars_json(file):
     """
@@ -77,6 +77,11 @@ def main():
 
     vars_json = load_vars_json("vars.json")
 
+    # Env Vars
+
+    account_id = sts.get_caller_identity()["Account"]
+    account_region = session.region_name
+
     # OIDC Provider
 
     oidc_url = "token.actions.githubusercontent.com"
@@ -99,7 +104,7 @@ def main():
             {
                 "Effect": "Allow",
                 "Principal": {
-                    "Federated": f"arn:aws:iam::{session}:oidc-provider/token.actions.githubusercontent.com"
+                    "Federated": f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
                 },
                 "Action": "sts:AssumeRoleWithWebIdentity",
                 "Condition": {
