@@ -55,19 +55,15 @@ def check_iam_role_exists(iam, role_name):
     except iam.exceptions.NoSuchEntityException:
         return False
 
-def create_iam_role_with_name_only(iam, role_name):
+def create_iam_role_with_name_only(iam, role_name, trust_policy):
     """
     Creates an IAM role with the specified name and an empty trust policy.
     (You can update the trust policy later.)
     Returns the created role's ARN.
     """
-    empty_trust_policy = {
-        "Version": "2012-10-17",
-        "Statement": []
-    }
     kwargs = {
         "RoleName": role_name,
-        "AssumeRolePolicyDocument": json.dumps(empty_trust_policy)
+        "AssumeRolePolicyDocument": json.dumps(trust_policy)
     }
     resp = iam.create_role(**kwargs)
     return resp["Role"]["Arn"]
@@ -97,11 +93,28 @@ def main():
     # Role
 
     role_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-role-oidc-bootstrap"
+    trust_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {
+                    "Federated": f"arn:aws:iam::{session}:oidc-provider/token.actions.githubusercontent.com"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                    "StringLike": {
+                        "token.actions.githubusercontent.com:sub": f"repo:{vars_json['github_account']}/{vars_json['github_repo']}:*"
+                    }
+                }
+            }
+        ]
+    }
 
     if check_iam_role_exists(iam, role_name):
         print(f"IAM role already exists.")
     else:
-        create_iam_role_with_name_only(iam, role_name)
+        create_iam_role_with_name_only(iam, role_name, trust_policy)
         print(f"IAM role created")
 
 
