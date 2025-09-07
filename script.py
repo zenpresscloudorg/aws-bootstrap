@@ -307,6 +307,7 @@ sg_natgw_groups = list_sg_nat.get("SecurityGroups", [])
 
 if sg_test_groups:
     print(f"Security Group test exists, skipping creation")
+    sg_test_id = sg_test_groups[0]["GroupId"]
 else:
     sg_test = ec2.create_security_group(
         GroupName=sg_test_name,
@@ -325,6 +326,7 @@ else:
 
 if sg_natgw_groups:
     print(f"Security Group NAT exists, skipping creation")
+    sg_natgw_id = sg_natgw_groups[0]["GroupId"]
 else:
     sg_natgw = ec2.create_security_group(
         GroupName=sg_natgw_name,
