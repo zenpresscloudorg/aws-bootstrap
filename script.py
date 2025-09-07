@@ -380,14 +380,21 @@ list_natwg = ec2.describe_instances(Filters=[
     {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
 ])["Reservations"]
 userdata_script = """#!/bin/bash
+sudo yum update -y
+sudo yum-config-manager --add-repo https://pkgs.tailscale.com/stable/amazon-linux/2023/tailscale.repo
+yum install -y iptables-services yum-utils tailscale
 sysctl -w net.ipv4.ip_forward=1
 echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+echo 'net.ipv6.conf.all.forwarding = 1' >> /etc/sysctl.conf
+sudo sysctl -p /etc/sysctl.conf
 ETH_IFACE=$(ip route | grep default | awk '{print $5}')
 iptables -t nat -A POSTROUTING -o $ETH_IFACE -j MASQUERADE
-yum install -y iptables-services
 service iptables save
 systemctl enable iptables
 systemctl start iptables
+sudo systemctl enable --now tailscaled
+sudo tailscale up
+sudo tailscale set --auth-key=vpc_subnet_private_tskey --hostname=instance_name --advertise-routes=192.0.2.0/24
 """
 
 if list_igws:
