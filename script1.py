@@ -68,7 +68,7 @@ def main():
 
     # OIDC Provider
 
-    oidc_url = "https://token.actions.githubusercontent.com"
+    oidc_url = "token.actions.githubusercontent.com"
     oidc_client_id = "sts.amazonaws.com"
     oidc_thumbprint = "6938fd4d98bab03faadb97b34396831e3780aea1"
 
