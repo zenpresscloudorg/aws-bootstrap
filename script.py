@@ -461,7 +461,7 @@ def main():
 
     test = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
 
-    print(azs)
+    print(test)
 
     #subnet_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-subnet-private-bootstrap-{az}"
 
@@ -472,7 +472,7 @@ def main():
    # else:
    #     subnet_id = create_subnet(ec2, subnet_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'], AZ)
     #    print(f"Subnet X created")
-    
+
 
 if __name__ == "__main__":
     main()
