@@ -69,6 +69,15 @@ def load_and_validate_vars_json(file):
 
     return vars_json
 
+def get_available_azs(ec2):
+    """
+    Returns a list of available Availability Zones names in the region.
+    """
+    response = ec2.describe_availability_zones(
+        Filters=[{"Name": "state", "Values": ["available"]}]
+    )
+    return [az["ZoneName"] for az in response["AvailabilityZones"]]
+
 def check_oidc_provider_exists(iam, url):
     """
     Returns True if the GitHub OIDC provider for GitHub Actions exists, False otherwise.
@@ -256,6 +265,42 @@ def create_vpc(ec2, vpc_name, cidr_block, enable_ipv6=False):
         print(f"IPv6 enabled for VPC")
     return vpc_id
 
+def check_subnet_exists(ec2, subnet_name):
+    """
+    Returns True if a subnet with the given Name tag exists, False otherwise.
+    """
+    response = ec2.describe_subnets(
+        Filters=[{"Name": "tag:Name", "Values": [subnet_name]}]
+    )
+    return len(response.get("Subnets", [])) > 0
+
+def get_subnet_by_name(ec2, subnet_name):
+    """
+    Returns the subnet dict for the given Name tag, or None if not found.
+    """
+    response = ec2.describe_subnets(
+        Filters=[{"Name": "tag:Name", "Values": [subnet_name]}]
+    )
+    subnets = response.get("Subnets", [])
+    if subnets:
+        return subnets[0]
+    return None
+
+def create_subnet(ec2, subnet_name, vpc_id, cidr_block, az):
+    """
+    Creates a subnet in the given VPC and AZ with the specified CIDR.
+    Assigns the Name tag.
+    Returns the Subnet ID.
+    """
+    response = ec2.create_subnet(
+        VpcId=vpc_id,
+        CidrBlock=cidr_block,
+        AvailabilityZone=az
+    )
+    subnet_id = response["Subnet"]["SubnetId"]
+    ec2.create_tags( Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
+    return subnet_id
+
 
 # Main
 
@@ -387,10 +432,10 @@ def main():
     if check_keypair_exists(ec2, keypair_name):
         print("Key pair exists, skipping")
     else:
-        keypair_created = create_keypair(ec2, keypair_name)
+        keypair_id = create_keypair(ec2, keypair_name)
         keypair_file = os.path.join(os.path.expanduser("~"), f"{keypair_name}.pem")
         with open(keypair_file, "w") as f:
-            f.write(keypair_created)
+            f.write(keypair_id)
         print(f"Private key saved to {keypair_file}")
 
     # VPC
@@ -398,6 +443,17 @@ def main():
     vpc_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-vpc-bootstrap"
 
     if check_vpc_exists(ec2, vpc_name):
+        print("Vpc exists, skipping")
+        vpc_id = get_vpc_id(ec2, vpc_name)
+    else:
+        vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
+        print(f"Vpc created")
+
+    # Subnets
+
+    subnet_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-subnet-bootstrap-AZ"
+
+    if check_subnet_exists(ec2, vpc_name):
         print("Vpc exists, skipping")
         vpc_id = get_vpc_id(ec2, vpc_name)
     else:
