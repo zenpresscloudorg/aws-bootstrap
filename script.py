@@ -123,21 +123,28 @@ def get_iam_role_arn(iam, role_name):
     return iam.get_role(RoleName=role_name)["Role"]["Arn"]
 
 def create_iam_role(iam, role_name, trust_policy):
+    """
+    Creates an IAM role with the specified name and an empty trust policy.
+    (You can update the trust policy later.)
+    Returns the created role's ARN.
+    """
     kwargs = {
         "RoleName": role_name,
         "AssumeRolePolicyDocument": json.dumps(trust_policy)
     }
     resp = iam.create_role(**kwargs)
-    role_arn = resp["Role"]["Arn"]
+    return resp["Role"]["Arn"]
 
-    # Espera activa hasta que get_role funcione
-    for _ in range(10):
+def wait_for_role_propagation(iam, role_name, timeout=60):
+    start = time.time()
+    while time.time() - start < timeout:
         try:
+            # Verifica si el role es visible
             iam.get_role(RoleName=role_name)
-            break
-        except botocore.exceptions.ClientError:
-            time.sleep(2)
-    return role_arn
+            return True
+        except Exception:
+            time.sleep(3)
+    raise Exception(f"IAM role {role_name} not visible after {timeout}s")
 
 def check_iam_policy_exists(iam, policy_name, scope="Local"):
     """
@@ -361,6 +368,8 @@ def main():
         role_arn = get_iam_role_arn(iam, role_name)
     else:
         role_arn = create_iam_role(iam, role_name, trust_policy)
+        wait_for_role_propagation(iam, role_name)
+
         print(f"IAM role created")
 
     # Role policy
