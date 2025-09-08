@@ -461,11 +461,18 @@ def main():
 
     azs = get_available_azs(ec2)
     subnet_public_cidr = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
-    subnet_public_ids = []
 
-    print("AZs:", azs)
-    print("CIDRs generados:", subnet_public_cidr)
-    print("Num AZs:", len(azs), "Num CIDRs:", len(subnet_public_cidr))
+    vpc_network = ipaddress.IPv4Network(vars_json["vpc_cidr"])
+    # CIDR base pública: primer /24 del VPC
+    subnet_public_base = list(vpc_network.subnets(new_prefix=24))[0]
+    # CIDR base privada: segundo /24 del VPC
+    subnet_private_base = list(vpc_network.subnets(new_prefix=24))[1]
+
+    print(vpc_network)
+    print(subnet_public_base)
+    print(subnet_private_base)
+
+    subnet_public_ids = []
 
     for az, subnet_cidr in zip(azs, subnet_public_cidr):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
@@ -476,7 +483,7 @@ def main():
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
             print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
-        subnet_public_ids.append(subnet_id)  # <--- Ahora sí, dentro del bucle
+        subnet_public_ids.append(subnet_id)
 
     print(subnet_public_ids)
 
