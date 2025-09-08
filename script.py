@@ -332,7 +332,7 @@ def main():
 
     # Role
 
-    role_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-role-bootstrap"
+    role_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-role-oidc"
     trust_policy = {
         "Version": "2012-10-17",
         "Statement": [
@@ -360,7 +360,7 @@ def main():
 
     # Role policy
 
-    policy_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-policy-bootstrap"
+    policy_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-policy-oidc"
     policy_document = {
         "Version": "2012-10-17",
         "Statement": [
@@ -391,7 +391,7 @@ def main():
 
     # S3
 
-    s3_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-s3-bootstrap"
+    s3_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-s3-tf"
     s3_policy = {
         "Version": "2012-10-17",
         "Statement": [
@@ -433,7 +433,7 @@ def main():
 
     # KeyPair
 
-    keypair_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-keypair-bootstrap"
+    keypair_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-keypair-main"
 
     if check_keypair_exists(ec2, keypair_name):
         print("Key pair exists, skipping")
@@ -446,7 +446,7 @@ def main():
 
     # VPC
 
-    vpc_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-vpc-bootstrap"
+    vpc_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-vpc-main"
 
     if check_vpc_exists(ec2, vpc_name):
         print("Vpc exists, skipping")
@@ -459,9 +459,17 @@ def main():
 
     azs = get_available_azs(ec2)
 
-    test = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
+    subnet_public_cidr = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
 
-    print(test)
+    print(subnet_public_cidr)
+
+    for az, subnet_cidr in zip(azs, subnet_public_cidr):
+        subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
+        if check_subnet_exists(ec2, subnet_name):
+            print(f"Subnet '{subnet_name}' already exists, skipping")
+        else:
+            create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
+            print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
 
     #subnet_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-subnet-private-bootstrap-{az}"
 
