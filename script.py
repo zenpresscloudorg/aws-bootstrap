@@ -552,7 +552,7 @@ def main():
         vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
         print(f"Vpc created")
 
-    # Subnets and Route tables
+    # Subnets
 
     azs = get_available_azs(ec2)
     azs_len = len(azs)
@@ -563,42 +563,44 @@ def main():
 
     for az, subnet_cidr in zip(azs, public_subnets):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
-        rt_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-pub"
         if check_subnet_exists(ec2, subnet_name):
             print(f"Subnet '{subnet_name}' already exists, skipping")
             subnet_info = get_subnet_by_name(ec2, subnet_name)
             subnet_id = subnet_info["SubnetId"]
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            rt_id = create_rt(ec2, vpc_id, rt_name)
-            associate_subnet_to_rt(ec2, subnet_id, rt_id)
-            print(f"Subnet and RT public created")
+            print(f"Subnet public created")
         subnet_public_ids.append(subnet_id)
 
     for az, subnet_cidr in zip(azs, private_subnets):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-priv-{az}"
-        rt_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-priv"
         if check_subnet_exists(ec2, subnet_name):
             print(f"Subnet '{subnet_name}' already exists, skipping")
             subnet_info = get_subnet_by_name(ec2, subnet_name)
             subnet_id = subnet_info["SubnetId"]
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            rt_id = create_rt(ec2, vpc_id, rt_name)
-            associate_subnet_to_rt(ec2, subnet_id, rt_id)
-            print(f"Subnet and RT private created")
+            print(f"Subnet private created")
         subnet_private_ids.append(subnet_id)
 
     # Route tables
 
+    rt_pub_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-pub"
+    rt_priv_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-priv"
 
-
-    if check_rt_exists(ec2, vpc_id, rt_public_name):
+    if check_rt_exists(ec2, vpc_id, rt_pub_name):
         print(f"Route Table public exists, skipping")
     else:
+        rt_id = create_rt(ec2, vpc_id, rt_pub_name)
+        associate_subnet_to_rt(ec2, subnet_public_ids, rt_id)
+        print(f"Route Table public created and associated")
 
-        print(f"Subnet {subnet_id} asociada a Route Table {rt_id}")
-
+    if check_rt_exists(ec2, vpc_id, rt_priv_name):
+        print(f"Route Table public exists, skipping")
+    else:
+        rt_id = create_rt(ec2, vpc_id, rt_priv_name)
+        associate_subnet_to_rt(ec2, subnet_public_ids, rt_id)
+        print(f"Route Table private created and associated")
 
 
     # Security groups
