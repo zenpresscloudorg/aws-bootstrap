@@ -472,6 +472,7 @@ def main():
    # else:
    #     subnet_id = create_subnet(ec2, subnet_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'], AZ)
     #    print(f"Subnet X created")
+    
 
 if __name__ == "__main__":
     main()
