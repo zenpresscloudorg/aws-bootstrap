@@ -455,18 +455,36 @@ def main():
 
     azs = get_available_azs(ec2)
     azs_len = len(azs)
-
-    # CIDRs públicos: 10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24
     public_subnets = [str(ipaddress.IPv4Network(f"10.0.{i}.0/24")) for i in range(azs_len)]
-
-    # CIDRs privados: 10.0.10.0/24, 10.0.11.0/24, 10.0.12.0/24
     private_subnets = [str(ipaddress.IPv4Network(f"10.0.{i+10}.0/24")) for i in range(azs_len)]
+    subnet_public_ids = []
+    subnet_private_ids = []
 
-    print("CIDRs públicos:", public_subnets)
-    print("CIDRs privados:", private_subnets)
+    for az, subnet_cidr in zip(azs, public_subnets):
+        subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
+        if check_subnet_exists(ec2, subnet_name):
+            print(f"Subnet '{subnet_name}' already exists, skipping")
+            subnet_info = get_subnet_by_name(ec2, subnet_name)
+            subnet_id = subnet_info["SubnetId"]
+        else:
+            subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
+            print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
+        subnet_public_ids.append(subnet_id)
 
+    print(subnet_public_ids)
 
+    for az, subnet_cidr in zip(azs, private_subnets):
+        subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
+        if check_subnet_exists(ec2, subnet_name):
+            print(f"Subnet '{subnet_name}' already exists, skipping")
+            subnet_info = get_subnet_by_name(ec2, subnet_name)
+            subnet_id = subnet_info["SubnetId"]
+        else:
+            subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
+            print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
+        subnet_private_ids.append(subnet_id)
 
+    print(subnet_public_ids)
 
 if __name__ == "__main__":
     main()
