@@ -66,6 +66,27 @@ def create_iam_role(iam, role_name, trust_policy):
     resp = iam.create_role(**kwargs)
     return resp["Role"]["Arn"]
 
+def create_iam_policy(iam, policy_name, policy_document):
+    """
+    Creates an IAM policy with the given name and policy document.
+    Returns the ARN of the created policy.
+    """
+    kwargs = {
+        "PolicyName": policy_name,
+        "PolicyDocument": json.dumps(policy_document)
+    }
+    resp = iam.create_policy(**kwargs)
+    return resp["Policy"]["Arn"]
+
+def attach_policy_to_role(iam, role_name, policy_arn):
+    """
+    Attaches the specified policy to the given IAM role.
+    """
+    iam.attach_role_policy(
+        RoleName=role_name,
+        PolicyArn=policy_arn
+    )
+
 def check_keypair_exists(ec2, name):
     """
     Returns True if the EC2 key pair with the given name exists, False otherwise.
@@ -198,6 +219,35 @@ def main():
     else:
         role_arn = create_iam_role(iam, role_name, trust_policy)
         print(f"IAM role created")
+
+    # Role policy
+
+    policy_document = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "s3:*",
+                "Resource": [
+                    f"arn:aws:s3:::{vars_json['project_name']}-s3-{vars_json['project_environment']}-*",
+                    f"arn:aws:s3:::{vars_json['project_name']}-s3-{vars_json['project_environment']}-*/*"
+                ]
+            },
+            {
+                "Effect": "Allow",
+                "Action": "dynamodb:*",
+                "Resource": [
+                    f"arn:aws:dynamodb:{account_region}:*:table/{vars_json['project_name']}-ddb-{vars_json['project_environment']}-*"
+                ]
+            }
+        ]
+    }
+
+    policy_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-policy-oidc-bootstrap"
+    policy_arn = create_iam_policy(iam, policy_name, policy_document)
+    print(f"Created/Updated IAM Role policy")
+    attach_policy_to_role(iam, role_name, policy_arn)
+    print(f"IAM policy attached to Role")
 
     # S3
 
