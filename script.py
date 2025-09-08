@@ -258,8 +258,6 @@ def create_vpc(ec2, vpc_name, cidr_block, enable_ipv6=False):
     if enable_ipv6:
         ec2.associate_vpc_cidr_block(VpcId=vpc_id, AmazonProvidedIpv6CidrBlock=True)
         print(f"IPv6 enabled for VPC")
-
-
     return vpc_id
 
 
