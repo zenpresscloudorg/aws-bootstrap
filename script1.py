@@ -257,7 +257,7 @@ def main():
                 "Effect": "Allow",
                 "Action": "dynamodb:*",
                 "Resource": [
-                    f"arn:aws:dynamodb:{account_region}:*:table/{vars_json['project_name']}-ddb-{vars_json['project_environment']}-*"
+                    f"arn:aws:dynamodb:{account_region}:*:table/{vars_json['project_name']}-{vars_json['project_environment']}-ddb-*"
                 ]
             }
         ]
