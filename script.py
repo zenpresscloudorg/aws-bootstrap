@@ -438,7 +438,6 @@ def attach_igw_to_vpc(ec2, igw_id, vpc_id):
         InternetGatewayId=igw_id,
         VpcId=vpc_id
     )
-    print(f"Internet Gateway {igw_id} adjuntado a VPC {vpc_id}")
 
 
 # Main
@@ -645,7 +644,7 @@ def main():
     igw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-igw-main"
 
     if check_igw_exists(ec2, igw_name):
-        print("IGW ya existe, skipping")
+        print("IGW exists, skipping")
     else:
         igw_id = create_igw(ec2, igw_name)
         attach_igw_to_vpc(ec2, igw_id, vpc_id)
