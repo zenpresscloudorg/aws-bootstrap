@@ -458,10 +458,7 @@ def main():
     # Subnets
 
     azs = get_available_azs(ec2)
-
     subnet_public_cidr = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
-
-    print(subnet_public_cidr)
 
     for az, subnet_cidr in zip(azs, subnet_public_cidr):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
