@@ -22,6 +22,48 @@ def load_vars_json(file):
         vars_data = json.load(f)
     return vars_data
 
+def validate_vars_json(vars_json):
+    """
+    Validates that vars_json dict contains required keys and value types.
+    Raises ValueError if invalid.
+    """
+    required_fields = {
+        "project_name": str,
+        "project_environment": str,
+        "vpc_cidr": str,
+        "vpc_ipv6": bool,
+        "vpc_subnet_private_tskey": str,
+        "hostedzones_public": list,
+        "hostedzones_private": list,
+        "github_account": str,
+        "github_repo": str,
+    }
+    missing = []
+    wrong_type = []
+
+    for key, typ in required_fields.items():
+        if key not in vars_json:
+            missing.append(key)
+        elif not isinstance(vars_json[key], typ):
+            wrong_type.append(f"{key} (expected {typ.__name__}, got {type(vars_json[key]).__name__})")
+    
+    if missing:
+        raise ValueError(f"Missing required keys in vars.json: {', '.join(missing)}")
+    if wrong_type:
+        raise ValueError(f"Type error(s) in vars.json: {', '.join(wrong_type)}")
+    
+    # Opcional: valida que los arrays tengan al menos un string y solo strings
+    for list_key in ("hostedzones_public", "hostedzones_private"):
+        if any(not isinstance(item, str) for item in vars_json[list_key]):
+            raise ValueError(f"All elements in {list_key} must be strings")
+    
+    # Opcional: valida si vpc_ipv6 debe ser "true" o "false"
+    if vars_json["vpc_ipv6"] not in ("true", "false"):
+        raise ValueError("vpc_ipv6 must be 'true' or 'false' as string")
+    
+    return True
+
+
 def check_oidc_provider_exists(iam, url):
     """
     Returns True if the GitHub OIDC provider for GitHub Actions exists, False otherwise.
