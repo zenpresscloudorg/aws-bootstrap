@@ -375,7 +375,7 @@ def main():
     }
 
     if check_s3_exists(s3, s3_name):
-        print(f"S3 bucket '{s3_name}' already exists, skipping")
+        print(f"S3 bucket already exists, skipping")
     else:
         create_s3(s3, s3_name, s3_policy, account_region)
         print(f"S3 bucket created")
