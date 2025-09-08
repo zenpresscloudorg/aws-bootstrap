@@ -454,8 +454,9 @@ def main():
     subnet_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-subnet-bootstrap-AZ"
 
     if check_subnet_exists(ec2, vpc_name):
-        print("Vpc exists, skipping")
-        vpc_id = get_vpc_id(ec2, vpc_name)
+        print("Subnet X exists, skipping")
+        vpc_id = get_subnet_by_name(ec2, vpc_name)
+        # Para obtener la lista subnets para asociar
     else:
         vpc_id = create_subnet(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
         print(f"Subnet X created")
