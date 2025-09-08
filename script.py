@@ -591,17 +591,18 @@ def main():
     if check_rt_exists(ec2, vpc_id, rt_pub_name):
         print(f"Route Table public exists, skipping")
     else:
-        rt_id = create_rt(ec2, vpc_id, rt_pub_name)
-        associate_subnet_to_rt(ec2, subnet_public_ids, rt_id)
-        print(f"Route Table public created and associated")
+        rt_pub_id = create_rt(ec2, vpc_id, rt_pub_name)
+        for subnet_id in subnet_public_ids:
+            associate_subnet_to_rt(ec2, subnet_id, rt_pub_id)
+        print(f"Route Table public created and associated to public subnets")
 
     if check_rt_exists(ec2, vpc_id, rt_priv_name):
-        print(f"Route Table public exists, skipping")
+        print(f"Route Table private exists, skipping")
     else:
-        rt_id = create_rt(ec2, vpc_id, rt_priv_name)
-        associate_subnet_to_rt(ec2, subnet_public_ids, rt_id)
-        print(f"Route Table private created and associated")
-
+        rt_priv_id = create_rt(ec2, vpc_id, rt_priv_name)
+        for subnet_id in subnet_private_ids:
+            associate_subnet_to_rt(ec2, subnet_id, rt_priv_id)
+        print(f"Route Table private created and associated to private subnets")
 
     # Security groups
 
