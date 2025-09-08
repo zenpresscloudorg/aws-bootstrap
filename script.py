@@ -218,19 +218,15 @@ def create_s3(s3, s3_name, s3_policy, account_region):
     s3.put_bucket_versioning( Bucket=s3_name, VersioningConfiguration={'Status': 'Enabled'})
     s3.put_bucket_policy(Bucket=s3_name,Policy=json.dumps(s3_policy))
 
-def check_vpc_exists(ec2, vpc_id):
+def check_vpc_exists(ec2, vpc_name):
     """
-    Returns True if the VPC with the given ID exists, False otherwise.
+    Returns True if the VPC with the given name exists, False otherwise.
     """
-    try:
-        response = ec2.describe_vpcs(VpcIds=[vpc_id])
-        return len(response.get("Vpcs", [])) > 0
-    except Exception as e:
-        # Si el VPC no existe, boto3 lanza ClientError con "InvalidVpcID.NotFound"
-        if "InvalidVpcID.NotFound" in str(e):
-            return False
-        # Otros errores, decide si lanzar o devolver False
-        return False
+    response = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
+    vpcs = response.get("Vpcs", [])
+    if vpcs:
+        return vpcs[0]["VpcId"]
+    return None
     
 def get_vpc_id(ec2, vpc_name):
     """
