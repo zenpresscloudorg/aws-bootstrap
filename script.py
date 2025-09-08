@@ -133,18 +133,8 @@ def create_iam_role(iam, role_name, trust_policy):
         "AssumeRolePolicyDocument": json.dumps(trust_policy)
     }
     resp = iam.create_role(**kwargs)
+    time.sleep(10)
     return resp["Role"]["Arn"]
-
-def wait_for_role_propagation(iam, role_name, timeout=60):
-    start = time.time()
-    while time.time() - start < timeout:
-        try:
-            # Verifica si el role es visible
-            iam.get_role(RoleName=role_name)
-            return True
-        except Exception:
-            time.sleep(3)
-    raise Exception(f"IAM role {role_name} not visible after {timeout}s")
 
 def check_iam_policy_exists(iam, policy_name, scope="Local"):
     """
@@ -368,8 +358,6 @@ def main():
         role_arn = get_iam_role_arn(iam, role_name)
     else:
         role_arn = create_iam_role(iam, role_name, trust_policy)
-        wait_for_role_propagation(iam, role_name)
-
         print(f"IAM role created")
 
     # Role policy
