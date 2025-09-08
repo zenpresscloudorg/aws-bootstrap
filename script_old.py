@@ -1,17 +1,3 @@
-import os
-import json
-import sys
-import ipaddress
-import boto3
-from urllib.parse import urlparse
-
-# Clients
-
-iam = boto3.client("iam")
-sts = boto3.client("sts")
-session = boto3.session.Session()
-s3 = boto3.client("s3")
-ec2 = boto3.client("ec2")
 
 # Variables
 
@@ -26,8 +12,7 @@ ami_al2023 = ec2.describe_images(Owners=['amazon'],Filters=[
 )
 ami = sorted(ami_al2023['Images'], key=lambda x: x['CreationDate'], reverse=True)[0]
 ami_id = ami['ImageId']
-project_name = vars["project_name"]
-project_env = vars["project_environment"]
+
 
 ### MOVER
 
@@ -39,85 +24,6 @@ private_rt_name = f"{project_name}-{project_env}-rt-private-bootstrap"
 
 
 
-# VPC
-
-
-vpc_network = ipaddress.ip_network(vpc_cidr)
-list_vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
-
-
-# Security Groups
-
-sg_test_name = f"{project_name}-{project_env}-sg-test-bootstrap"
-sg_natgw_name = f"{project_name}-{project_env}-sg-natgw-bootstrap"
-list_sg_test = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [sg_test_name]}])
-sg_test_groups = list_sg_test.get("SecurityGroups", [])
-list_sg_nat = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [sg_natgw_name]}])
-sg_natgw_groups = list_sg_nat.get("SecurityGroups", [])
-
-if sg_test_groups:
-    print(f"Security Group test exists, skipping creation")
-    sg_test_id = sg_test_groups[0]["GroupId"]
-else:
-    sg_test = ec2.create_security_group(
-        GroupName=sg_test_name,
-        Description="All open (test)",
-        VpcId=vpc_id
-    )
-    sg_test_id = sg_test["GroupId"]
-    ec2.authorize_security_group_ingress(
-        GroupId=sg_test_id,
-        IpPermissions=[{
-            "IpProtocol": "-1",  # ALL protocols
-            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
-        }]
-    )
-    print(f"Security Group {sg_test_name} created")
-
-if sg_natgw_groups:
-    print(f"Security Group NAT exists, skipping creation")
-    sg_natgw_id = sg_natgw_groups[0]["GroupId"]
-else:
-    sg_natgw = ec2.create_security_group(
-        GroupName=sg_natgw_name,
-        Description="All inbound blocked (NAT)",
-        VpcId=vpc_id
-    )
-    sg_natgw_id = sg_natgw["GroupId"]
-    print(f"Security Group NAT created")
-
-# Subnets
-
-list_subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])["Subnets"]
-public_subnet_block = list(vpc_network.subnets(new_prefix=24))[0] 
-private_subnet_block = list(vpc_network.subnets(new_prefix=24))[1] 
-public_subnet_cidr = list(public_subnet_block.subnets(new_prefix=26))
-private_subnet_cidr = list(private_subnet_block.subnets(new_prefix=26))
-existing_subnets = []
-
-for subnet in list_subnets:
-    for tag in subnet.get("Tags", []):
-        if tag["Key"] == "Name":
-            existing_subnets.append(tag["Value"])
-
-for subnet_type, cidr_list, label in [
-    ("public", public_subnet_cidr, "public"),
-    ("private", private_subnet_cidr, "private"),
-]:
-    for i, az in enumerate(account_azs):
-        subnet_name = f"{project_name}-{project_env}-subnet-{subnet_type}-{az}-bootstrap"
-        if subnet_name in existing_subnets:
-            print(f"Subnet {label} {subnet_name} exists, skipping creation")
-            continue
-        create_subnet = ec2.create_subnet(
-            VpcId=vpc_id,
-            CidrBlock=str(cidr_list[i]),
-            AvailabilityZone=az
-        )
-        subnet_id = create_subnet["Subnet"]["SubnetId"]
-        ec2.create_tags(Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
-        print(f"Created {label} subnet {subnet_name}")
-        existing_subnets.append(subnet_name)
 
 # Gateways
 

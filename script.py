@@ -368,6 +368,42 @@ def create_subnet(ec2, subnet_name, vpc_id, cidr_block, az):
     ec2.create_tags( Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
     return subnet_id
 
+def check_rt_exists(ec2, vpc_id, rt_name):
+    """
+    Devuelve True si existe una Route Table con ese nombre en la VPC, False si no existe.
+    Busca por tag:Name y VPC.
+    """
+    response = ec2.describe_route_tables(
+        Filters=[
+            {"Name": "vpc-id", "Values": [vpc_id]},
+            {"Name": "tag:Name", "Values": [rt_name]}
+        ]
+    )
+    return len(response.get("RouteTables", [])) > 0
+
+def create_rt(ec2, vpc_id, rt_name):
+    """
+    Crea una route table en la VPC indicada y la etiqueta con Name=rt_name.
+    Devuelve el RouteTableId creado.
+    """
+    response = ec2.create_route_table(VpcId=vpc_id)
+    rt_id = response["RouteTable"]["RouteTableId"]
+    ec2.create_tags(
+        Resources=[rt_id],
+        Tags=[{"Key": "Name", "Value": rt_name}]
+    )
+    print(f"Route Table '{rt_name}' creada. ID: {rt_id}")
+    return rt_id
+
+def associate_subnet_to_rt(ec2, subnet_id, rt_id):
+    """
+    Asocia una subnet (subnet_id) a una route table (rt_id).
+    Devuelve el AssociationId.
+    """
+    response = ec2.associate_route_table(
+        SubnetId=subnet_id,
+        RouteTableId=rt_id
+    )
 
 # Main
 
@@ -516,7 +552,7 @@ def main():
         vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
         print(f"Vpc created")
 
-    # Subnets
+    # Subnets and Route tables
 
     azs = get_available_azs(ec2)
     azs_len = len(azs)
@@ -527,27 +563,43 @@ def main():
 
     for az, subnet_cidr in zip(azs, public_subnets):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
+        rt_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-pub"
         if check_subnet_exists(ec2, subnet_name):
             print(f"Subnet '{subnet_name}' already exists, skipping")
             subnet_info = get_subnet_by_name(ec2, subnet_name)
             subnet_id = subnet_info["SubnetId"]
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
+            rt_id = create_rt(ec2, vpc_id, rt_name)
+            associate_subnet_to_rt(ec2, subnet_id, rt_id)
+            print(f"Subnet and RT public created")
         subnet_public_ids.append(subnet_id)
 
     for az, subnet_cidr in zip(azs, private_subnets):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-priv-{az}"
+        rt_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-priv"
         if check_subnet_exists(ec2, subnet_name):
             print(f"Subnet '{subnet_name}' already exists, skipping")
             subnet_info = get_subnet_by_name(ec2, subnet_name)
             subnet_id = subnet_info["SubnetId"]
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
+            rt_id = create_rt(ec2, vpc_id, rt_name)
+            associate_subnet_to_rt(ec2, subnet_id, rt_id)
+            print(f"Subnet and RT private created")
         subnet_private_ids.append(subnet_id)
 
     # Route tables
+
+
+
+    if check_rt_exists(ec2, vpc_id, rt_public_name):
+        print(f"Route Table public exists, skipping")
+    else:
+
+        print(f"Subnet {subnet_id} asociada a Route Table {rt_id}")
+
+
 
     # Security groups
 
