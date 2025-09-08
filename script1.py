@@ -72,6 +72,18 @@ def create_iam_role(iam, role_name, trust_policy):
     resp = iam.create_role(**kwargs)
     return resp["Role"]["Arn"]
 
+def check_iam_policy_exists(iam, policy_name, scope="Local"):
+    """
+    Returns the ARN if the IAM policy with the given name exists, otherwise returns None.
+    scope="Local" (default) busca solo en la cuenta, "AWS" busca policies globales de AWS.
+    """
+    paginator = iam.get_paginator("list_policies")
+    for page in paginator.paginate(Scope=scope):
+        for policy in page["Policies"]:
+            if policy["PolicyName"] == policy_name:
+                return policy["Arn"]
+    return None
+
 def create_iam_policy(iam, policy_name, policy_document):
     """
     Creates an IAM policy with the given name and policy document.
@@ -221,7 +233,7 @@ def main():
     }
 
     if check_iam_role_exists(iam, role_name):
-        print(f"IAM role already exists.")
+        print(f"IAM role already exists, skipping")
         role_arn = get_iam_role_arn(iam, role_name)
     else:
         role_arn = create_iam_role(iam, role_name, trust_policy)
@@ -229,6 +241,7 @@ def main():
 
     # Role policy
 
+    policy_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-policy-bootstrap"
     policy_document = {
         "Version": "2012-10-17",
         "Statement": [
@@ -250,11 +263,12 @@ def main():
         ]
     }
 
-    policy_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-policy-bootstrap"
-    policy_arn = create_iam_policy(iam, policy_name, policy_document)
-    print(f"Created/Updated IAM Role policy")
-    attach_policy_to_role(iam, role_name, policy_arn)
-    print(f"IAM policy attached to Role")
+    if check_iam_policy_exists(iam, policy_name):
+        print(f"IAM Policy already exists, skipping")
+    else:
+        policy_arn = create_iam_policy(iam, policy_name, policy_document)
+        attach_policy_to_role(iam, role_name, policy_arn)
+        print(f"IAM Policy created and attached to Role")
 
     # S3
 
