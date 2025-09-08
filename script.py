@@ -123,10 +123,6 @@ def get_iam_role_arn(iam, role_name):
     return iam.get_role(RoleName=role_name)["Role"]["Arn"]
 
 def create_iam_role(iam, role_name, trust_policy):
-    """
-    Creates an IAM role with the specified name and trust policy.
-    Returns the created role's ARN after confirming propagation.
-    """
     kwargs = {
         "RoleName": role_name,
         "AssumeRolePolicyDocument": json.dumps(trust_policy)
@@ -134,12 +130,12 @@ def create_iam_role(iam, role_name, trust_policy):
     resp = iam.create_role(**kwargs)
     role_arn = resp["Role"]["Arn"]
 
-    # Espera activa (polling) hasta que get_role no lanza error
+    # Espera activa hasta que get_role funcione
     for _ in range(10):
         try:
             iam.get_role(RoleName=role_name)
             break
-        except botocore.exceptions.ClientError as e:
+        except botocore.exceptions.ClientError:
             time.sleep(2)
     return role_arn
 
