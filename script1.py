@@ -250,7 +250,7 @@ def main():
         ]
     }
 
-    policy_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-policy-oidc-bootstrap"
+    policy_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-policy-bootstrap"
     policy_arn = create_iam_policy(iam, policy_name, policy_document)
     print(f"Created/Updated IAM Role policy")
     attach_policy_to_role(iam, role_name, policy_arn)
