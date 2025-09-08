@@ -246,6 +246,20 @@ def get_vpc_id(ec2, vpc_name):
         return vpcs[0]["VpcId"]
     return None
 
+def create_vpc(ec2, vpc_name, cidr_block, enable_ipv6=False):
+    """
+    Creates a VPC with the given CIDR and Name tag.
+    If enable_ipv6 is True, assigns an Amazon-provided IPv6 block.
+    Returns the VPC ID.
+    """
+    response = ec2.create_vpc(CidrBlock=cidr_block)
+    vpc_id = response["Vpc"]["VpcId"]
+    ec2.create_tags(  Resources=[vpc_id],Tags=[{"Key": "Name", "Value": vpc_name}])
+    if enable_ipv6:
+        ec2.assign_ipv6_cidr_block(VpcId=vpc_id)
+
+    return vpc_id
+
 
 # Main
 
@@ -391,6 +405,7 @@ def main():
         print("Vpc exists, skipping")
         vpc_id = get_vpc_id(ec2, vpc_name)
     else:
+        vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
         print(f"Vpc created")
 
 if __name__ == "__main__":
