@@ -1,235 +1,161 @@
 import os
 import json
-import sys
-import ipaddress
 import boto3
-from urllib.parse import urlparse
+import botocore
 
 # Clients
 
 iam = boto3.client("iam")
 sts = boto3.client("sts")
-session = boto3.session.Session()
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
+session = boto3.session.Session()
 
-# Load vars
+def load_vars_json(file):
+    """
+    Loads var.json from the same directory as the script.
+    Returns the parsed dictionary.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    vars_path = os.path.join(script_dir, file)
+    with open(vars_path, "r") as f:
+        vars_data = json.load(f)
+    return vars_data
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-vars_path = os.path.join(script_dir, "vars.json")
+def check_oidc_provider_exists(iam, url):
+    """
+    Returns True if the GitHub OIDC provider for GitHub Actions exists, False otherwise.
+    """
+    for p in iam.list_open_id_connect_providers().get("OpenIDConnectProviderList", []):
+        arn = p["Arn"]
+        response = iam.get_open_id_connect_provider(OpenIDConnectProviderArn=arn)
+        oidc_url = response.get("Url", "")
+        if oidc_url == url:
+            return True
+    return False
 
-with open(vars_path) as f:
-    vars = json.load(f)
 
-# Validation
-
-REQUIRED_VARS = [
-    "project_name",
-    "project_environment",
-    "vpc_cidr",
-    "vpc_ipv6",
-    "hostedzones_public",
-    "hostedzones_private",
-    "vpc_subnet_private_tskey",
-    "github_account",
-    "github_repo"
-]
-
-ARRAY_VARS = [
-    "hostedzones_public",
-    "hostedzones_private"
-]
-
-missing = [var for var in REQUIRED_VARS if var not in vars]
-wrong_type = [var for var in ARRAY_VARS if var in vars and not isinstance(vars[var], list)]
-
-if missing or wrong_type:
-    if missing:
-        print(f"Missing required variables in vars.json: {', '.join(missing)}", file=sys.stderr)
-    if wrong_type:
-        print(f"These variables must be arrays (even if empty): {', '.join(wrong_type)}", file=sys.stderr)
-    sys.exit(1)
-
-if "/" not in vars["vpc_cidr"]:
-    print("vpc_cidr must include a subnet mask (e.g., 10.0.0.0/16)", file=sys.stderr)
-    sys.exit(1)
-
-try:
-    ipaddress.IPv4Network(vars["vpc_cidr"])
-except Exception:
-    print("vpc_cidr must be a valid IPv4 CIDR (e.g., 10.0.0.0/16)", file=sys.stderr)
-    sys.exit(1)
-
-# Variables
-
-account_id = sts.get_caller_identity()["Account"]
-account_region = session.region_name
-account_azs = [az["ZoneName"] for az in ec2.describe_availability_zones()["AvailabilityZones"]]
-ami_al2023 = ec2.describe_images(Owners=['amazon'],Filters=[
-        {"Name": "name", "Values": ["al2023-ami-*-arm64"]},
-        {"Name": "architecture", "Values": ["arm64"]},
-        {"Name": "state", "Values": ["available"]},
-        {"Name": "root-device-type", "Values": ["ebs"]},
-        {"Name": "virtualization-type", "Values": ["hvm"]},
-    ]
-)
-ami = sorted(ami_al2023['Images'], key=lambda x: x['CreationDate'], reverse=True)[0]
-ami_id = ami['ImageId']
-project_name = vars["project_name"]
-project_env = vars["project_environment"]
-
-### MOVER
-
-hostedzones_public = vars["hostedzones_public"]
-hostedzones_private = vars["hostedzones_private"]
-
-public_rt_name = f"{project_name}-{project_env}-rt-public-bootstrap"
-private_rt_name = f"{project_name}-{project_env}-rt-private-bootstrap"
-
-# OIDC Github
-
-OIDC_URL = "https://token.actions.githubusercontent.com"
-CLIENT_ID = "sts.amazonaws.com"
-THUMBPRINT = "6938fd4d98bab03faadb97b34396831e3780aea1"
-oicd_arn = None
-def canonical_url(url):
-    url = url.strip().lower().rstrip("/")
-    if url.startswith("http"):
-        url = urlparse(url).netloc
-    return url
-
-for list_oicd in iam.list_open_id_connect_providers()["OpenIDConnectProviderList"]:
-    list_oicd_arn = list_oicd["Arn"]
-    details = iam.get_open_id_connect_provider(OpenIDConnectProviderArn=list_oicd_arn)
-    provider_url = canonical_url(details.get("Url", ""))
-    if provider_url == canonical_url(OIDC_URL):
-        oicd_arn = list_oicd_arn
-        break
-
-if oicd_arn:
-    print("OIDC provider already exists")
-else:
-    print("OIDC provider not found, creando uno nuevo...")
+def create_oidc_provider(iam, url, clientid, oidc_thumbprint):
+    """
+    Creates the GitHub OIDC provider in the AWS account and returns its ARN.
+    """
     iam.create_open_id_connect_provider(
-        Url=OIDC_URL,
-        ClientIDList=[CLIENT_ID],
-        ThumbprintList=[THUMBPRINT]
+        Url=url, ClientIDList=[clientid], ThumbprintList=[oidc_thumbprint]
     )
-    print("OIDC provider created")
 
-# OICD Role
+def check_iam_role_exists(iam, role_name):
+    """
+    Returns True if the IAM role with the given name exists, False otherwise.
+    """
+    try:
+        iam.get_role(RoleName=role_name)
+        return True
+    except iam.exceptions.NoSuchEntityException:
+        return False
+    
+def get_iam_role_arn(iam, role_name):
+    """
+    Returns the ARN of the specified IAM role.
+    """
+    return iam.get_role(RoleName=role_name)["Role"]["Arn"]
 
-role_name = f"{project_name}-{project_env}-role-oidc-bootstrap"
-policy_name = f"{project_name}-{project_env}-policy-oidc-bootstrap"
-github_account = vars["github_account"]
-github_repo = vars["github_repo"]
-list_roles = iam.list_roles()["Roles"]
-role_names = [r["RoleName"] for r in list_roles]
-role_policy = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": "s3:*",
-            "Resource": [
-                f"arn:aws:s3:::{project_name}-s3-{project_env}-*",
-                f"arn:aws:s3:::{project_name}-s3-{project_env}-*/*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": "dynamodb:*",
-            "Resource": [
-                f"arn:aws:dynamodb:{account_region}:*:table/{project_name}-ddb-{project_env}-*"
-            ]
-        }
-    ]
-}
-trust_policy = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Federated": f"arn:aws:iam::{account_id}:oidc-provider/token.actions.githubusercontent.com"
-            },
-            "Action": "sts:AssumeRoleWithWebIdentity",
-            "Condition": {
-                "StringLike": {
-                    "token.actions.githubusercontent.com:sub": f"repo:{github_account}/{github_repo}:*"
-                }
-            }
-        }
-    ]
-}
+def create_iam_role(iam, role_name, trust_policy):
+    """
+    Creates an IAM role with the specified name and an empty trust policy.
+    (You can update the trust policy later.)
+    Returns the created role's ARN.
+    """
+    kwargs = {
+        "RoleName": role_name,
+        "AssumeRolePolicyDocument": json.dumps(trust_policy)
+    }
+    resp = iam.create_role(**kwargs)
+    return resp["Role"]["Arn"]
 
-if role_name in role_names:
-    for r in list_roles:
-        if r["RoleName"] == role_name:
-            role_arn = r["Arn"]
-            break
-    print("Role exists, skipping creation and policy update")
-else:
-    role_data=iam.create_role(
+def check_iam_policy_exists(iam, policy_name, scope="Local"):
+    """
+    Returns the ARN if the IAM policy with the given name exists, otherwise returns None.
+    scope="Local" (default) busca solo en la cuenta, "AWS" busca policies globales de AWS.
+    """
+    paginator = iam.get_paginator("list_policies")
+    for page in paginator.paginate(Scope=scope):
+        for policy in page["Policies"]:
+            if policy["PolicyName"] == policy_name:
+                return policy["Arn"]
+    return None
+
+def create_iam_policy(iam, policy_name, policy_document):
+    """
+    Creates an IAM policy with the given name and policy document.
+    Returns the ARN of the created policy.
+    """
+    kwargs = {
+        "PolicyName": policy_name,
+        "PolicyDocument": json.dumps(policy_document)
+    }
+    resp = iam.create_policy(**kwargs)
+    return resp["Policy"]["Arn"]
+
+def attach_policy_to_role(iam, role_name, policy_arn):
+    """
+    Attaches the specified policy to the given IAM role.
+    """
+    iam.attach_role_policy(
         RoleName=role_name,
-        AssumeRolePolicyDocument=json.dumps(trust_policy)
-    )
-    role_arn = role_data["Role"]["Arn"]
-    print("Role created")
-
-    iam.put_role_policy(
-        RoleName=role_name,
-        PolicyName=policy_name,
-        PolicyDocument=json.dumps(role_policy)
+        PolicyArn=policy_arn
     )
 
-    print(f"Inline policy attached to role {role_name}.")
+def check_keypair_exists(ec2, name):
+    """
+    Returns True if the EC2 key pair with the given name exists, False otherwise.
+    """
+    try:
+        response = ec2.describe_key_pairs(KeyNames=[name])
+        key_pairs = response.get("KeyPairs", [])
+        return any(kp["KeyName"] == name for kp in key_pairs)
+    except Exception as e:
+        if "InvalidKeyPair.NotFound" in str(e):
+            return False
+        return False
 
-# S3 Bucket
-
-s3_name = f"{project_name}-{project_env}-s3-bootstrap"
-list_buckets = [b['Name'] for b in s3.list_buckets()["Buckets"]]
-s3_policy = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "AllowOnlySpecificRole",
-            "Effect": "Allow",
-            "Principal": {
-                "AWS": role_arn
-            },
-            "Action": "s3:*",
-            "Resource": [
-                f"arn:aws:s3:::{s3_name}",
-                f"arn:aws:s3:::{s3_name}/*"
-            ]
-        },
-        {
-            "Sid": "DenyAllOtherPrincipals",
-            "Effect": "Deny",
-            "Principal": "*",
-            "Action": "s3:*",
-            "Resource": [
-                f"arn:aws:s3:::{s3_name}",
-                f"arn:aws:s3:::{s3_name}/*"
-            ],
-            "Condition": {
-                "StringNotEquals": {
-                    "aws:PrincipalArn": role_arn
-                }
-            }
-        }
-    ]
-}
+def create_keypair(ec2, key_name):
+    """
+    Creates an EC2 key pair with the given name.
+    Returns the private key material as a string.
+    """
+    response = ec2.create_key_pair(KeyName=key_name)
+    private_key = response["KeyMaterial"]
+    print(f"Key pair '{key_name}' created.")
+    return private_key
 
 
-if s3_name in list_buckets:
-    print("Bucket exists, skipping")
-else:
+def check_s3_bucket_exists(s3, bucket_name):
+    """
+    Returns True if the S3 bucket exists, False otherwise.
+    """
+    try:
+        s3.head_bucket(Bucket=bucket_name)
+        return True
+    except botocore.exceptions.ClientError as e:
+        error_code = int(e.response['Error']['Code'])
+        if error_code == 404:
+            return False
+        elif error_code == 403:
+            # Forbidden: bucket exists but no access
+            return True
+        else:
+            # Any other error: treat as not existing, or raise if you prefer
+            return False
+        
+def create_s3_bucket(s3, s3_name, s3_policy, account_region):
+    """
+    Creates an S3 bucket with best-practice security settings, encryption, versioning, and a custom bucket policy.
+    """
     s3.create_bucket(
         Bucket=s3_name,
         CreateBucketConfiguration={'LocationConstraint': account_region}
     )
+
     s3.put_public_access_block(
         Bucket=s3_name,
         PublicAccessBlockConfiguration={
@@ -239,6 +165,7 @@ else:
             'RestrictPublicBuckets': True
         }
     )
+
     s3.put_bucket_encryption(
         Bucket=s3_name,
         ServerSideEncryptionConfiguration={
@@ -247,230 +174,157 @@ else:
             ]
         }
     )
+
     s3.put_bucket_versioning(
         Bucket=s3_name,
         VersioningConfiguration={'Status': 'Enabled'}
     )
+
     s3.put_bucket_policy(
         Bucket=s3_name,
         Policy=json.dumps(s3_policy)
     )
-    print("Bucket created")
 
-# Keypair
 
-keypair_name = f"{project_name}-{project_env}-keypair-main-bootstrap"
-keypair_file = os.path.expandvars(f"$HOME/{keypair_name}.pem")
-keypair_names = [k["KeyName"] for k in ec2.describe_key_pairs()["KeyPairs"]]
+# Main
 
-if keypair_name in keypair_names:
-    print("Key pair exists, skipping")
-else:
-    create_keypair = ec2.create_key_pair(KeyName=keypair_name)
-    key_material = create_keypair["KeyMaterial"]
-    with open(keypair_file, "w") as f:
-        f.write(key_material)
-    print(f"Key pair created and saved as {keypair_file}")
+def main():
 
-# VPC
+    # Vars
 
-vpc_name = f"{project_name}-{project_env}-vpc-bootstrap"
-vpc_cidr = vars["vpc_cidr"]
-vpc_ipv6 = vars["vpc_ipv6"]
-vpc_network = ipaddress.ip_network(vpc_cidr)
-list_vpcs = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
-vpc_names = list_vpcs.get("Vpcs", [])
+    vars_json = load_vars_json("vars.json")
 
-if vpc_names:
-    print(f"VPC exists, skipping creation")
-    vpc_id = vpc_names[0]["VpcId"]
-else:
-    create_vpc = ec2.create_vpc(CidrBlock=vpc_cidr)
-    vpc_id = create_vpc["Vpc"]["VpcId"]
-    ec2.create_tags(Resources=[vpc_id], Tags=[{"Key": "Name", "Value": vpc_name}])
-    print(f"VPC created: {vpc_id}")
-    if str(vpc_ipv6).lower() == "true":
-        ipv6_assoc = ec2.associate_vpc_cidr_block(
-            VpcId=vpc_id,
-            AmazonProvidedIpv6CidrBlock=True
-        )
-        ipv6_assoc.get("Ipv6CidrBlockAssociation", {})
-        print(f"IPv6 enabled for VPC")
+    # Env Vars
+
+    account_id = sts.get_caller_identity()["Account"]
+    account_region = session.region_name
+
+    # OIDC Provider
+
+    oidc_url = "token.actions.githubusercontent.com"
+    oidc_client_id = "sts.amazonaws.com"
+    oidc_thumbprint = "6938fd4d98bab03faadb97b34396831e3780aea1"
+
+    if check_oidc_provider_exists(iam, oidc_url):
+        print("OIDC provider already exists, skipping")
     else:
-        print("IPv6 not enabled for VPC.")
+        create_oidc_provider(iam, f"https://{oidc_url}", oidc_client_id, oidc_thumbprint)
+        print(f"OIDC provider created")
 
-# Security Groups
+    # Role
 
-sg_test_name = f"{project_name}-{project_env}-sg-test-bootstrap"
-sg_natgw_name = f"{project_name}-{project_env}-sg-natgw-bootstrap"
-list_sg_test = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [sg_test_name]}])
-sg_test_groups = list_sg_test.get("SecurityGroups", [])
-list_sg_nat = ec2.describe_security_groups(Filters=[{"Name": "group-name", "Values": [sg_natgw_name]}])
-sg_natgw_groups = list_sg_nat.get("SecurityGroups", [])
-
-if sg_test_groups:
-    print(f"Security Group test exists, skipping creation")
-    sg_test_id = sg_test_groups[0]["GroupId"]
-else:
-    sg_test = ec2.create_security_group(
-        GroupName=sg_test_name,
-        Description="All open (test)",
-        VpcId=vpc_id
-    )
-    sg_test_id = sg_test["GroupId"]
-    ec2.authorize_security_group_ingress(
-        GroupId=sg_test_id,
-        IpPermissions=[{
-            "IpProtocol": "-1",  # ALL protocols
-            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
-        }]
-    )
-    print(f"Security Group {sg_test_name} created")
-
-if sg_natgw_groups:
-    print(f"Security Group NAT exists, skipping creation")
-    sg_natgw_id = sg_natgw_groups[0]["GroupId"]
-else:
-    sg_natgw = ec2.create_security_group(
-        GroupName=sg_natgw_name,
-        Description="All inbound blocked (NAT)",
-        VpcId=vpc_id
-    )
-    sg_natgw_id = sg_natgw["GroupId"]
-    print(f"Security Group NAT created")
-
-# Subnets
-
-list_subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])["Subnets"]
-public_subnet_block = list(vpc_network.subnets(new_prefix=24))[0] 
-private_subnet_block = list(vpc_network.subnets(new_prefix=24))[1] 
-public_subnet_cidr = list(public_subnet_block.subnets(new_prefix=26))
-private_subnet_cidr = list(private_subnet_block.subnets(new_prefix=26))
-existing_subnets = []
-
-for subnet in list_subnets:
-    for tag in subnet.get("Tags", []):
-        if tag["Key"] == "Name":
-            existing_subnets.append(tag["Value"])
-
-for subnet_type, cidr_list, label in [
-    ("public", public_subnet_cidr, "public"),
-    ("private", private_subnet_cidr, "private"),
-]:
-    for i, az in enumerate(account_azs):
-        subnet_name = f"{project_name}-{project_env}-subnet-{subnet_type}-{az}-bootstrap"
-        if subnet_name in existing_subnets:
-            print(f"Subnet {label} {subnet_name} exists, skipping creation")
-            continue
-        create_subnet = ec2.create_subnet(
-            VpcId=vpc_id,
-            CidrBlock=str(cidr_list[i]),
-            AvailabilityZone=az
-        )
-        subnet_id = create_subnet["Subnet"]["SubnetId"]
-        ec2.create_tags(Resources=[subnet_id], Tags=[{"Key": "Name", "Value": subnet_name}])
-        print(f"Created {label} subnet {subnet_name}")
-        existing_subnets.append(subnet_name)
-
-# Gateways
-
-igw_id = None
-instance_name = f"{project_name}-{project_env}-ec2-natgw-bootstrap"
-volume_name = f"{project_name}-{project_env}-ebs-natgw-bootstrap"
-vpc_subnet_private_tskey = vars["vpc_subnet_private_tskey"]
-list_igws = ec2.describe_internet_gateways(Filters=[
-    {"Name": "attachment.vpc-id",
-    "Values": [vpc_id]}])["InternetGateways"]
-list_natwg = ec2.describe_instances(Filters=[
-    {"Name": "tag:Name", "Values": [instance_name]},
-    {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
-])["Reservations"]
-private_subnet_cidrs = []
-for subnet in list_subnets:
-    name = None
-    for tag in subnet.get("Tags", []):
-        if tag["Key"] == "Name":
-            name = tag["Value"]
-    if name and "-subnet-private-" in name:
-        private_subnet_cidrs.append(subnet["CidrBlock"])
-advertise_routes = ",".join(private_subnet_cidrs)
-userdata_script = f"""#!/bin/bash
-sudo yum update -y
-sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo https://pkgs.tailscale.com/stable/amazon-linux/2023/tailscale.repo
-sudo yum install -y iptables-services tailscale
-sysctl -w net.ipv4.ip_forward=1
-echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
-echo 'net.ipv6.conf.all.forwarding = 1' >> /etc/sysctl.conf
-sudo sysctl -p /etc/sysctl.conf
-ETH_IFACE=$(ip route | grep default | awk '{{print $5}}')
-iptables -t nat -A POSTROUTING -o $ETH_IFACE -j MASQUERADE
-service iptables save
-systemctl enable iptables
-systemctl start iptables
-sudo systemctl enable --now tailscaled
-sudo tailscale up --auth-key={vpc_subnet_private_tskey} --hostname={instance_name} --advertise-routes={advertise_routes}
-"""
-
-if list_igws:
-    igw_id = list_igws[0]["InternetGatewayId"]
-    print(f"Internet Gateway already exists, skipping creation")
-else:
-    create_igw = ec2.create_internet_gateway()
-    igw_id = create_igw["InternetGateway"]["InternetGatewayId"]
-    ec2.attach_internet_gateway(VpcId=vpc_id, InternetGatewayId=igw_id)
-    igw_name = f"{project_name}-{project_env}-igw-bootstrap"
-    ec2.create_tags(Resources=[igw_id], Tags=[{"Key": "Name", "Value": igw_name}])
-    print(f"Created and attached Internet Gateway to VPC")
-
-if list_natwg:
-    print(f"Instance natgw already exists, skipping creation")
-else:
-    subnet_id_nat = None
-    for subnet in list_subnets:
-        for tag in subnet.get("Tags", []):
-            if tag["Key"] == "Name" and "-subnet-public-" in tag["Value"]:
-                subnet_id_nat = subnet["SubnetId"]
-                break
-        if subnet_id_nat:
-            break
-
-    create_instance_natgw = ec2.run_instances(
-        ImageId=ami_id,
-        InstanceType="t4g.nano",
-        KeyName=keypair_name,
-        MinCount=1,
-        MaxCount=1,
-        NetworkInterfaces=[
+    role_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-role-bootstrap"
+    trust_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
             {
-                "SubnetId": subnet_id_nat,
-                "DeviceIndex": 0,
-                "Groups": [sg_natgw_id],
-                "AssociatePublicIpAddress": True
+                "Effect": "Allow",
+                "Principal": {
+                    "Federated": f"arn:aws:iam::{account_id}:oidc-provider/{oidc_url}"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                    "StringLike": {
+                        "token.actions.githubusercontent.com:sub": f"repo:{vars_json['github_account']}/{vars_json['github_repo']}:*"
+                    }
+                }
             }
-        ],
-        UserData=userdata_script,
-        TagSpecifications=[
+        ]
+    }
+
+    if check_iam_role_exists(iam, role_name):
+        print(f"IAM role already exists, skipping")
+        role_arn = get_iam_role_arn(iam, role_name)
+    else:
+        role_arn = create_iam_role(iam, role_name, trust_policy)
+        print(f"IAM role created")
+
+    # Role policy
+
+    policy_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-policy-bootstrap"
+    policy_document = {
+        "Version": "2012-10-17",
+        "Statement": [
             {
-                "ResourceType": "instance",
-                "Tags": [
-                    {"Key": "Name", "Value": instance_name}
+                "Effect": "Allow",
+                "Action": "s3:*",
+                "Resource": [
+                    f"arn:aws:s3:::{vars_json['project_name']}-{vars_json['project_environment']}-s3-*",
+                    f"arn:aws:s3:::{vars_json['project_name']}-{vars_json['project_environment']}-s3-*/*"
                 ]
             },
             {
-                "ResourceType": "volume",
-                "Tags": [
-                    {"Key": "Name", "Value": volume_name}
+                "Effect": "Allow",
+                "Action": "dynamodb:*",
+                "Resource": [
+                    f"arn:aws:dynamodb:{account_region}:*:table/{vars_json['project_name']}-{vars_json['project_environment']}-ddb-*"
                 ]
             }
         ]
-    )
+    }
 
-    natgw_instance_id = create_instance_natgw["Instances"][0]["InstanceId"]
-    network_interface_id = create_instance_natgw["Instances"][0]["NetworkInterfaces"][0]["NetworkInterfaceId"]
-    waiter_natgw_instance = ec2.get_waiter('instance_running')
-    print(f"Waiting for natgw instance is 'running'...")
-    waiter_natgw_instance.wait(InstanceIds=[natgw_instance_id])
-    allocation = ec2.allocate_address(Domain='vpc')
-    ec2.associate_address(AllocationId=allocation['AllocationId'],NetworkInterfaceId=network_interface_id)
-    print(f"Created NAT Gateway EC2 instance and Elastic IP assigned to natgw_instance")
+    if check_iam_policy_exists(iam, policy_name):
+        print(f"IAM Policy already exists, skipping")
+    else:
+        policy_arn = create_iam_policy(iam, policy_name, policy_document)
+        attach_policy_to_role(iam, role_name, policy_arn)
+        print(f"IAM Policy created and attached to Role")
+
+    # S3
+
+    s3_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-s3-bootstrap"
+    s3_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AllowOnlySpecificRole",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": role_arn
+                },
+                "Action": "s3:*",
+                "Resource": [
+                    f"arn:aws:s3:::{s3_name}",
+                    f"arn:aws:s3:::{s3_name}/*"
+                ]
+            },
+            {
+                "Sid": "DenyAllOtherPrincipals",
+                "Effect": "Deny",
+                "Principal": "*",
+                "Action": "s3:*",
+                "Resource": [
+                    f"arn:aws:s3:::{s3_name}",
+                    f"arn:aws:s3:::{s3_name}/*"
+                ],
+                "Condition": {
+                    "StringNotEquals": {
+                        "aws:PrincipalArn": role_arn
+                    }
+                }
+            }
+        ]
+    }
+
+    if check_s3_bucket_exists(s3, s3_name):
+        print(f"S3 bucket '{s3_name}' already exists, skipping")
+    else:
+        create_s3_bucket(s3, s3_name, s3_policy, account_region)
+        print(f"S3 bucket created")
+
+    # KeyPair
+
+    keypair_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-keypair-bootstrap"
+
+    if check_keypair_exists(ec2, keypair_name):
+        print("Key pair exists, skipping")
+    else:
+        keypair_created = create_keypair(ec2, keypair_name)
+        keypair_file = os.path.join(os.path.expanduser("~"), f"{keypair_name}.pem")
+        with open(keypair_file, "w") as f:
+            f.write(keypair_created)
+        print(f"Private key saved to {keypair_file}")
+
+
+if __name__ == "__main__":
+    main()
