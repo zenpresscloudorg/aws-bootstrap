@@ -317,7 +317,7 @@ def main():
     keypair_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-keypair-bootstrap"
 
     if check_keypair_exists(ec2, keypair_name):
-        print("Key pair exists.")
+        print("Key pair exists, skipping")
     else:
         keypair_created = create_keypair(ec2, keypair_name)
         keypair_file = os.path.join(os.path.expanduser("~"), f"{keypair_name}.pem")
