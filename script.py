@@ -405,6 +405,42 @@ def associate_subnet_to_rt(ec2, subnet_id, rt_id):
         RouteTableId=rt_id
     )
 
+def check_igw_exists(ec2, igw_name):
+    """
+    Devuelve True si existe un Internet Gateway con el tag Name indicado, False si no existe.
+    """
+    response = ec2.describe_internet_gateways(
+        Filters=[
+            {"Name": "tag:Name", "Values": [igw_name]}
+        ]
+    )
+    return len(response.get("InternetGateways", [])) > 0
+
+def create_igw(ec2, igw_name):
+    """
+    Crea un Internet Gateway y lo etiqueta con Name=igw_name.
+    Devuelve el InternetGatewayId creado.
+    """
+    response = ec2.create_internet_gateway()
+    igw_id = response["InternetGateway"]["InternetGatewayId"]
+    ec2.create_tags(
+        Resources=[igw_id],
+        Tags=[{"Key": "Name", "Value": igw_name}]
+    )
+    print(f"Internet Gateway '{igw_name}' creado. ID: {igw_id}")
+    return igw_id
+
+def attach_igw_to_vpc(ec2, igw_id, vpc_id):
+    """
+    Asocia (adjunta) el IGW indicado a la VPC.
+    """
+    ec2.attach_internet_gateway(
+        InternetGatewayId=igw_id,
+        VpcId=vpc_id
+    )
+    print(f"Internet Gateway {igw_id} adjuntado a VPC {vpc_id}")
+
+
 # Main
 
 def main():
@@ -603,6 +639,17 @@ def main():
         for subnet_id in subnet_private_ids:
             associate_subnet_to_rt(ec2, subnet_id, rt_priv_id)
         print(f"Route Table private created and associated to private subnets")
+
+    # IGW
+
+    igw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-igw-main"
+
+    if check_igw_exists(ec2, igw_name):
+        print("IGW ya existe, skipping")
+    else:
+        igw_id = create_igw(ec2, igw_name)
+        attach_igw_to_vpc(ec2, igw_id, vpc_id)
+        print("IGW created and attached to VPC")
 
     # Security groups
 
