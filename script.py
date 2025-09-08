@@ -461,12 +461,11 @@ def main():
 
     azs = get_available_azs(ec2)
     subnet_public_cidr = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
-    subnet_pubblic_ids = []
+    subnet_public_ids = []
 
     print("AZs:", azs)
     print("CIDRs generados:", subnet_public_cidr)
     print("Num AZs:", len(azs), "Num CIDRs:", len(subnet_public_cidr))
-
 
     for az, subnet_cidr in zip(azs, subnet_public_cidr):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
@@ -477,10 +476,9 @@ def main():
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
             print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
-    subnet_pubblic_ids.append(subnet_id)
+        subnet_public_ids.append(subnet_id)  # <--- Ahora sí, dentro del bucle
 
-    print (subnet_pubblic_ids)
-
+    print(subnet_public_ids)
 
 if __name__ == "__main__":
     main()
