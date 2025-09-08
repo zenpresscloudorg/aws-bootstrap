@@ -472,6 +472,8 @@ def main():
             print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
     subnet_pubblic_ids.append(subnet_id)
 
+    print (subnet_pubblic_ids)
+
 
 if __name__ == "__main__":
     main()
