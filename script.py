@@ -256,7 +256,9 @@ def create_vpc(ec2, vpc_name, cidr_block, enable_ipv6=False):
     vpc_id = response["Vpc"]["VpcId"]
     ec2.create_tags(  Resources=[vpc_id],Tags=[{"Key": "Name", "Value": vpc_name}])
     if enable_ipv6:
-        ec2.assign_vpc_ipv6_cidr_block(VpcId=vpc_id)
+        ec2.associate_vpc_cidr_block(VpcId=vpc_id, AmazonProvidedIpv6CidrBlock=True)
+        print(f"IPv6 enabled for VPC")
+
 
     return vpc_id
 
