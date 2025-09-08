@@ -462,11 +462,11 @@ def main():
     azs = get_available_azs(ec2)
     subnet_public_cidr = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
 
-    vpc_network = ipaddress.IPv4Network(vars_json["vpc_cidr"])
+
     # CIDR base pública: primer /24 del VPC
-    subnet_public_base = list(vpc_network.subnets(new_prefix=24))[0]
+    subnet_public_base = list(vars_json["vpc_cidr"].subnets(new_prefix=24))[0]
     # CIDR base privada: segundo /24 del VPC
-    subnet_private_base = list(vpc_network.subnets(new_prefix=24))[1]
+    subnet_private_base = list(vars_json["vpc_cidr"].subnets(new_prefix=24))[1]
 
     print(vpc_network)
     print(subnet_public_base)
