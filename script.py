@@ -457,8 +457,8 @@ def main():
         print("Vpc exists, skipping")
         vpc_id = get_vpc_id(ec2, vpc_name)
     else:
-        vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
-        print(f"Vpc created")
+        vpc_id = create_subnet(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
+        print(f"Subnet X created")
 
 if __name__ == "__main__":
     main()
