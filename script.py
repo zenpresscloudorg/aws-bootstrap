@@ -295,14 +295,15 @@ def get_sg_id(ec2, vpc_id, sg_name):
     return None
 
 
-def create_sg(ec2, vpc_id, sg_name):
+def create_sg(ec2, vpc_id, sg_name, description):
     """
     Crea un security group en la VPC indicada con el nombre y descripción dados.
     Devuelve el SecurityGroupId creado.
     """
     response = ec2.create_security_group(
         GroupName=sg_name,
-        VpcId=vpc_id
+        VpcId=vpc_id,
+        Description=description
     )
     sg_id = response['GroupId']
     # Añade el tag Name para facilitar búsqueda en consola
@@ -557,7 +558,7 @@ def main():
         sg_test_id = get_sg_id(ec2, vpc_id, sg_test_name)
         print(f"SG test exists, skipping")
     else:
-        sg_test_id = create_sg(ec2, vpc_id, sg_test_name)
+        sg_test_id = create_sg(ec2, vpc_id, sg_test_name, "test")
         create_sg_inbound_rule(ec2, sg_test_id, protocol="-1", cidr="0.0.0.0/0")
         print(f"SG test created and inbound rule added")
 
@@ -565,7 +566,7 @@ def main():
         sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
         print(f"SG natgw exists, skipping")
     else:
-        sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name)
+        sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name, "ec2-natgw")
         print(f"SG natgw created and inbound rule added")
 
 
