@@ -267,6 +267,70 @@ def create_vpc(ec2, vpc_name, cidr_block, enable_ipv6=False):
         print(f"IPv6 enabled for VPC")
     return vpc_id
 
+def check_sg_exists(ec2, vpc_id, sg_name):
+    """
+    Devuelve True si existe un Security Group con ese nombre en la VPC, False si no existe.
+    """
+    response = ec2.describe_security_groups(
+        Filters=[
+            {"Name": "group-name", "Values": [sg_name]},
+            {"Name": "vpc-id", "Values": [vpc_id]}
+        ]
+    )
+    return len(response.get("SecurityGroups", [])) > 0
+
+def get_sg_id(ec2, vpc_id, sg_name):
+    """
+    Devuelve el GroupId del Security Group con ese nombre en la VPC, o None si no existe.
+    """
+    response = ec2.describe_security_groups(
+        Filters=[
+            {"Name": "group-name", "Values": [sg_name]},
+            {"Name": "vpc-id", "Values": [vpc_id]}
+        ]
+    )
+    groups = response.get("SecurityGroups", [])
+    if groups:
+        return groups[0]["GroupId"]
+    return None
+
+
+def create_sg(ec2, vpc_id, sg_name):
+    """
+    Crea un security group en la VPC indicada con el nombre y descripción dados.
+    Devuelve el SecurityGroupId creado.
+    """
+    response = ec2.create_security_group(
+        GroupName=sg_name,
+        VpcId=vpc_id
+    )
+    sg_id = response['GroupId']
+    # Añade el tag Name para facilitar búsqueda en consola
+    ec2.create_tags(
+        Resources=[sg_id],
+        Tags=[{"Key": "Name", "Value": sg_name}]
+    )
+    return sg_id
+
+def create_sg_inbound_rule(ec2, sg_id, protocol, from_port=None, to_port=None, cidr="0.0.0.0/0"):
+    """
+    Añade una regla inbound al Security Group.
+    Si protocol == '-1' (ALL), ignora from_port y to_port.
+    """
+    perm = {
+        'IpProtocol': protocol,
+        'IpRanges': [{'CidrIp': cidr}]
+    }
+    if protocol != "-1":
+        perm['FromPort'] = from_port
+        perm['ToPort'] = to_port
+
+    ec2.authorize_security_group_ingress(
+        GroupId=sg_id,
+        IpPermissions=[perm]
+    )
+
+
 def check_subnet_exists(ec2, subnet_name):
     """
     Returns True if a subnet with the given Name tag exists, False otherwise.
@@ -471,8 +535,6 @@ def main():
             print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
         subnet_public_ids.append(subnet_id)
 
-    print(subnet_public_ids)
-
     for az, subnet_cidr in zip(azs, private_subnets):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-priv-{az}"
         if check_subnet_exists(ec2, subnet_name):
@@ -484,7 +546,28 @@ def main():
             print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
         subnet_private_ids.append(subnet_id)
 
-    print(subnet_public_ids)
+    # Route tables
+
+    # Security groups
+
+    sg_test_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-test"
+    sg_natgw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-natgw"
+
+    if check_sg_exists(ec2, vpc_id, sg_test_name):
+        sg_test_id = get_sg_id(ec2, vpc_id, sg_test_name)
+        print(f"SG test exists, skipping")
+    else:
+        sg_test_id = create_sg(ec2, vpc_id, sg_test_name)
+        create_sg_inbound_rule(ec2, sg_test_id, protocol="-1", cidr="0.0.0.0/0")
+        print(f"SG test created and inbound rule added")
+
+    if check_sg_exists(ec2, vpc_id, sg_natgw_name):
+        sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
+        print(f"SG natgw exists, skipping")
+    else:
+        sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name)
+        print(f"SG natgw created and inbound rule added")
+
 
 if __name__ == "__main__":
     main()
