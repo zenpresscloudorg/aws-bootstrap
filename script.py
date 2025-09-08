@@ -455,13 +455,19 @@ def main():
 
     azs = get_available_azs(ec2)
     vpc_cidr = ipaddress.IPv4Network(vars_json["vpc_cidr"])
-    subnet_public_cidr = list(vpc_cidr.subnets(new_prefix=24))[0]
-    subnet_private_cidr = list(vpc_cidr.subnets(new_prefix=24))[1]
 
-    print(subnet_public_cidr)
-    print(subnet_private_cidr)
 
- 
+    subnet_public_cidr = list(vpc_cidr.subnets(new_prefix=24))[0]   # 10.0.0.0/24
+    # Bloque /24 para privadas
+    subnet_private_cidr = list(vpc_cidr.subnets(new_prefix=24))[1]  # 10.0.1.0/24
+
+    public_subnets = [str(subnet_public_cidr)] * len(azs)
+    private_subnets = [str(subnet_private_cidr)] * len(azs)
+
+    print("CIDRs públicos:", public_subnets)
+    print("CIDRs privados:", private_subnets)
+
+
 
 if __name__ == "__main__":
     main()
