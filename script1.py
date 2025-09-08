@@ -249,8 +249,8 @@ def main():
                 "Effect": "Allow",
                 "Action": "s3:*",
                 "Resource": [
-                    f"arn:aws:s3:::{vars_json['project_name']}-s3-{vars_json['project_environment']}-*",
-                    f"arn:aws:s3:::{vars_json['project_name']}-s3-{vars_json['project_environment']}-*/*"
+                    f"arn:aws:s3:::{vars_json['project_name']}-{vars_json['project_environment']}-s3-*",
+                    f"arn:aws:s3:::{vars_json['project_name']}-{vars_json['project_environment']}-s3-*/*"
                 ]
             },
             {
