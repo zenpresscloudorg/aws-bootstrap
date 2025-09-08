@@ -79,12 +79,6 @@ def get_available_azs(ec2):
     )
     return [az["ZoneName"] for az in response["AvailabilityZones"]]
 
-def calc_subnet_cidrs(base_cidr, num_subnets):
-    network = ipaddress.IPv4Network(base_cidr)
-    new_prefix = 24  # Puedes cambiar esto si quieres otro tamaño
-    subnets = list(network.subnets(new_prefix=26))
-    return [str(subnet) for subnet in subnets[:num_subnets]]
-
 def check_oidc_provider_exists(iam, url):
     """
     Returns True if the GitHub OIDC provider for GitHub Actions exists, False otherwise.
@@ -460,32 +454,14 @@ def main():
     # Subnets
 
     azs = get_available_azs(ec2)
-    subnet_public_cidr = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
+    vpc_cidr = ipaddress.IPv4Network(vars_json["vpc_cidr"])
+    subnet_public_cidr = list(vpc_cidr.subnets(new_prefix=24))[0]
+    subnet_private_cidr = list(vpc_cidr.subnets(new_prefix=24))[1]
 
+    print(subnet_public_cidr)
+    print(subnet_private_cidr)
 
-    # CIDR base pública: primer /24 del VPC
-    subnet_public_base = list(vars_json["vpc_cidr"].subnets(new_prefix=24))[0]
-    # CIDR base privada: segundo /24 del VPC
-    subnet_private_base = list(vars_json["vpc_cidr"].subnets(new_prefix=24))[1]
-
-    print(vpc_network)
-    print(subnet_public_base)
-    print(subnet_private_base)
-
-    subnet_public_ids = []
-
-    for az, subnet_cidr in zip(azs, subnet_public_cidr):
-        subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
-        if check_subnet_exists(ec2, subnet_name):
-            print(f"Subnet '{subnet_name}' already exists, skipping")
-            subnet_info = get_subnet_by_name(ec2, subnet_name)
-            subnet_id = subnet_info["SubnetId"]
-        else:
-            subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
-        subnet_public_ids.append(subnet_id)
-
-    print(subnet_public_ids)
+ 
 
 if __name__ == "__main__":
     main()
