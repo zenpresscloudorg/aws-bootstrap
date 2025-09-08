@@ -459,24 +459,18 @@ def main():
 
     azs = get_available_azs(ec2)
     subnet_public_cidr = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
+    subnet_pubblic_ids = []
 
     for az, subnet_cidr in zip(azs, subnet_public_cidr):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
         if check_subnet_exists(ec2, subnet_name):
             print(f"Subnet '{subnet_name}' already exists, skipping")
+            subnet_info = get_subnet_by_name(ec2, subnet_name)
+            subnet_id = subnet_info["SubnetId"]
         else:
-            create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
+            subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
             print(f"Subnet '{subnet_name}' created (AZ: {az}, CIDR: {subnet_cidr})")
-
-    #subnet_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-subnet-private-bootstrap-{az}"
-
-   # if check_subnet_exists(ec2, subnet_name):
-   #     print("Subnet X exists, skipping")
-   #     subnet_id = get_subnet_by_name(ec2, subnet_name)
-   #     # Para obtener la lista subnets para asociar
-   # else:
-   #     subnet_id = create_subnet(ec2, subnet_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'], AZ)
-    #    print(f"Subnet X created")
+    subnet_pubblic_ids.append(subnet_id)
 
 
 if __name__ == "__main__":
