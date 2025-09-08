@@ -2,6 +2,7 @@ import os
 import json
 import boto3
 import botocore
+import ipaddress
 
 # Clients
 
@@ -10,23 +11,26 @@ sts = boto3.client("sts")
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 session = boto3.session.Session()
+import os
+import json
+import ipaddress
 
-def load_vars_json(file):
+def load_and_validate_vars_json(file):
     """
-    Loads var.json from the same directory as the script.
-    Returns the parsed dictionary.
+    Loads and validates vars.json from the same directory as the script.
+    Returns the validated dictionary.
+    Raises FileNotFoundError or ValueError if something is wrong.
     """
+    # Load file
     script_dir = os.path.dirname(os.path.abspath(__file__))
     vars_path = os.path.join(script_dir, file)
-    with open(vars_path, "r") as f:
-        vars_data = json.load(f)
-    return vars_data
+    if not os.path.isfile(vars_path):
+        raise FileNotFoundError(f"vars.json file not found at: {vars_path}")
 
-def validate_vars_json(vars_json):
-    """
-    Validates that vars_json dict contains required keys and value types.
-    Raises ValueError if invalid.
-    """
+    with open(vars_path, "r") as f:
+        vars_json = json.load(f)
+
+    # Validate fields
     required_fields = {
         "project_name": str,
         "project_environment": str,
@@ -52,17 +56,18 @@ def validate_vars_json(vars_json):
     if wrong_type:
         raise ValueError(f"Type error(s) in vars.json: {', '.join(wrong_type)}")
     
-    # Opcional: valida que los arrays tengan al menos un string y solo strings
+    # Check all elements in hostedzones are str
     for list_key in ("hostedzones_public", "hostedzones_private"):
         if any(not isinstance(item, str) for item in vars_json[list_key]):
             raise ValueError(f"All elements in {list_key} must be strings")
     
-    # Opcional: valida si vpc_ipv6 debe ser "true" o "false"
-    if vars_json["vpc_ipv6"] not in ("true", "false"):
-        raise ValueError("vpc_ipv6 must be 'true' or 'false' as string")
-    
-    return True
+    # Check vpc_cidr is valid IPv4 CIDR
+    try:
+        net = ipaddress.IPv4Network(vars_json["vpc_cidr"])
+    except Exception as e:
+        raise ValueError(f"vpc_cidr is not a valid IPv4 CIDR: {vars_json['vpc_cidr']}. Error: {e}")
 
+    return vars_json
 
 def check_oidc_provider_exists(iam, url):
     """
@@ -234,10 +239,7 @@ def main():
 
     # Vars
 
-    vars_json = load_vars_json("vars.json")
-
-    # Env Vars
-
+    vars_json = load_and_validate_vars_json("vars.json")
     account_id = sts.get_caller_identity()["Account"]
     account_region = session.region_name
 
