@@ -66,6 +66,30 @@ def create_iam_role(iam, role_name, trust_policy):
     resp = iam.create_role(**kwargs)
     return resp["Role"]["Arn"]
 
+def check_keypair_exists(ec2, name):
+    """
+    Returns True if the EC2 key pair with the given name exists, False otherwise.
+    """
+    try:
+        response = ec2.describe_key_pairs(KeyNames=[name])
+        key_pairs = response.get("KeyPairs", [])
+        return any(kp["KeyName"] == name for kp in key_pairs)
+    except Exception as e:
+        if "InvalidKeyPair.NotFound" in str(e):
+            return False
+        return False
+
+def create_keypair(ec2, key_name):
+    """
+    Creates an EC2 key pair with the given name.
+    Returns the private key material as a string.
+    """
+    response = ec2.create_key_pair(KeyName=key_name)
+    private_key = response["KeyMaterial"]
+    print(f"Key pair '{key_name}' created.")
+    return private_key
+
+
 def check_s3_bucket_exists(s3, bucket_name):
     """
     Returns True if the S3 bucket exists, False otherwise.
@@ -216,6 +240,20 @@ def main():
     else:
         create_s3_bucket(s3, s3_name, s3_policy, account_region)
         print(f"S3 bucket created")
+
+    # KeyPair
+
+    keypair_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-keypair-bootstrap"
+
+    if check_keypair_exists(ec2, keypair_name):
+        print("Key pair exists.")
+    else:
+        keypair_created = create_keypair(ec2, keypair_name)
+        keypair_file = os.path.join(os.path.expanduser("~"), f"{keypair_name}.pem")
+        with open(keypair_file, "w") as f:
+            f.write(keypair_created)
+        print(f"Private key saved to {keypair_file}")
+
 
 if __name__ == "__main__":
     main()
