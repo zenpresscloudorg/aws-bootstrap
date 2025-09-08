@@ -13,57 +13,8 @@ session = boto3.session.Session()
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 
-# Load vars
-
-script_dir = os.path.dirname(os.path.abspath(__file__))
-vars_path = os.path.join(script_dir, "vars.json")
-
-with open(vars_path) as f:
-    vars = json.load(f)
-
-# Validation
-
-REQUIRED_VARS = [
-    "project_name",
-    "project_environment",
-    "vpc_cidr",
-    "vpc_ipv6",
-    "hostedzones_public",
-    "hostedzones_private",
-    "vpc_subnet_private_tskey",
-    "github_account",
-    "github_repo"
-]
-
-ARRAY_VARS = [
-    "hostedzones_public",
-    "hostedzones_private"
-]
-
-missing = [var for var in REQUIRED_VARS if var not in vars]
-wrong_type = [var for var in ARRAY_VARS if var in vars and not isinstance(vars[var], list)]
-
-if missing or wrong_type:
-    if missing:
-        print(f"Missing required variables in vars.json: {', '.join(missing)}", file=sys.stderr)
-    if wrong_type:
-        print(f"These variables must be arrays (even if empty): {', '.join(wrong_type)}", file=sys.stderr)
-    sys.exit(1)
-
-if "/" not in vars["vpc_cidr"]:
-    print("vpc_cidr must include a subnet mask (e.g., 10.0.0.0/16)", file=sys.stderr)
-    sys.exit(1)
-
-try:
-    ipaddress.IPv4Network(vars["vpc_cidr"])
-except Exception:
-    print("vpc_cidr must be a valid IPv4 CIDR (e.g., 10.0.0.0/16)", file=sys.stderr)
-    sys.exit(1)
-
 # Variables
 
-account_id = sts.get_caller_identity()["Account"]
-account_region = session.region_name
 account_azs = [az["ZoneName"] for az in ec2.describe_availability_zones()["AvailabilityZones"]]
 ami_al2023 = ec2.describe_images(Owners=['amazon'],Filters=[
         {"Name": "name", "Values": ["al2023-ami-*-arm64"]},

@@ -175,8 +175,7 @@ def create_keypair(ec2, key_name):
     print(f"Key pair '{key_name}' created.")
     return private_key
 
-
-def check_s3_bucket_exists(s3, bucket_name):
+def check_s3_exists(s3, bucket_name):
     """
     Returns True if the S3 bucket exists, False otherwise.
     """
@@ -194,15 +193,11 @@ def check_s3_bucket_exists(s3, bucket_name):
             # Any other error: treat as not existing, or raise if you prefer
             return False
         
-def create_s3_bucket(s3, s3_name, s3_policy, account_region):
+def create_s3(s3, s3_name, s3_policy, account_region):
     """
     Creates an S3 bucket with best-practice security settings, encryption, versioning, and a custom bucket policy.
     """
-    s3.create_bucket(
-        Bucket=s3_name,
-        CreateBucketConfiguration={'LocationConstraint': account_region}
-    )
-
+    s3.create_bucket( Bucket=s3_name, CreateBucketConfiguration={'LocationConstraint': account_region})
     s3.put_public_access_block(
         Bucket=s3_name,
         PublicAccessBlockConfiguration={
@@ -212,7 +207,6 @@ def create_s3_bucket(s3, s3_name, s3_policy, account_region):
             'RestrictPublicBuckets': True
         }
     )
-
     s3.put_bucket_encryption(
         Bucket=s3_name,
         ServerSideEncryptionConfiguration={
@@ -221,16 +215,36 @@ def create_s3_bucket(s3, s3_name, s3_policy, account_region):
             ]
         }
     )
+    s3.put_bucket_versioning( Bucket=s3_name, VersioningConfiguration={'Status': 'Enabled'})
+    s3.put_bucket_policy(Bucket=s3_name,Policy=json.dumps(s3_policy))
 
-    s3.put_bucket_versioning(
-        Bucket=s3_name,
-        VersioningConfiguration={'Status': 'Enabled'}
+def check_vpc_exists(ec2, vpc_id):
+    """
+    Returns True if the VPC with the given ID exists, False otherwise.
+    """
+    try:
+        response = ec2.describe_vpcs(VpcIds=[vpc_id])
+        return len(response.get("Vpcs", [])) > 0
+    except Exception as e:
+        # Si el VPC no existe, boto3 lanza ClientError con "InvalidVpcID.NotFound"
+        if "InvalidVpcID.NotFound" in str(e):
+            return False
+        # Otros errores, decide si lanzar o devolver False
+        return False
+    
+def get_vpc_id(ec2, vpc_name):
+    """
+    Returns the VPC ID for the given Name tag, or None if not found.
+    """
+    response = ec2.describe_vpcs(
+        Filters=[
+            {"Name": "tag:Name", "Values": [vpc_name]}
+        ]
     )
-
-    s3.put_bucket_policy(
-        Bucket=s3_name,
-        Policy=json.dumps(s3_policy)
-    )
+    vpcs = response.get("Vpcs", [])
+    if vpcs:
+        return vpcs[0]["VpcId"]
+    return None
 
 
 # Main
@@ -350,10 +364,10 @@ def main():
         ]
     }
 
-    if check_s3_bucket_exists(s3, s3_name):
+    if check_s3_exists(s3, s3_name):
         print(f"S3 bucket '{s3_name}' already exists, skipping")
     else:
-        create_s3_bucket(s3, s3_name, s3_policy, account_region)
+        create_s3(s3, s3_name, s3_policy, account_region)
         print(f"S3 bucket created")
 
     # KeyPair
@@ -369,6 +383,15 @@ def main():
             f.write(keypair_created)
         print(f"Private key saved to {keypair_file}")
 
+    # VPC
+
+    vpc_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-vpc-bootstrap"
+
+    if check_vpc_exists(ec2, vpc_name):
+        print("Vpc exists, skipping")
+        vpc_id = get_vpc_id(ec2, vpc_name)
+    else:
+        print(f"Vpc created")
 
 if __name__ == "__main__":
     main()
