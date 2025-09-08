@@ -454,19 +454,17 @@ def main():
     # Subnets
 
     azs = get_available_azs(ec2)
-    vpc_cidr = ipaddress.IPv4Network(vars_json["vpc_cidr"])
+    azs_len = len(azs)
 
+    # CIDRs públicos: 10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24
+    public_subnets = [str(ipaddress.IPv4Network(f"10.0.{i}.0/24")) for i in range(azs_len)]
 
-    # El primer /24 para públicas, el segundo /24 para privadas
-    public_block = list(vpc_cidr.subnets(new_prefix=24))[0]   # 10.0.0.0/24
-    private_block = list(vpc_cidr.subnets(new_prefix=24))[1]  # 10.0.1.0/24
-
-    # Ahora divide cada /24 en 3 subnets /26 (una por AZ)
-    public_subnets = [str(s) for s in public_block.subnets(new_prefix=26)][:len(azs)]
-    private_subnets = [str(s) for s in private_block.subnets(new_prefix=26)][:len(azs)]
+    # CIDRs privados: 10.0.10.0/24, 10.0.11.0/24, 10.0.12.0/24
+    private_subnets = [str(ipaddress.IPv4Network(f"10.0.{i+10}.0/24")) for i in range(azs_len)]
 
     print("CIDRs públicos:", public_subnets)
     print("CIDRs privados:", private_subnets)
+
 
 
 
