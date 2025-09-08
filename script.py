@@ -78,6 +78,12 @@ def get_available_azs(ec2):
     )
     return [az["ZoneName"] for az in response["AvailabilityZones"]]
 
+def calc_subnet_cidrs(base_cidr, num_subnets):
+    network = ipaddress.IPv4Network(base_cidr)
+    new_prefix = 24  # Puedes cambiar esto si quieres otro tamaño
+    subnets = list(network.subnets(new_prefix=26))
+    return [str(subnet) for subnet in subnets[:num_subnets]]
+
 def check_oidc_provider_exists(iam, url):
     """
     Returns True if the GitHub OIDC provider for GitHub Actions exists, False otherwise.
@@ -451,15 +457,21 @@ def main():
 
     # Subnets
 
-    subnet_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-subnet-bootstrap-AZ"
+    azs = get_available_azs(ec2)
 
-    if check_subnet_exists(ec2, vpc_name):
-        print("Subnet X exists, skipping")
-        vpc_id = get_subnet_by_name(ec2, vpc_name)
-        # Para obtener la lista subnets para asociar
-    else:
-        vpc_id = create_subnet(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
-        print(f"Subnet X created")
+    test = calc_subnet_cidrs(vars_json["vpc_cidr"], len(azs))
+
+    print(azs)
+
+    #subnet_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-subnet-private-bootstrap-{az}"
+
+   # if check_subnet_exists(ec2, subnet_name):
+   #     print("Subnet X exists, skipping")
+   #     subnet_id = get_subnet_by_name(ec2, subnet_name)
+   #     # Para obtener la lista subnets para asociar
+   # else:
+   #     subnet_id = create_subnet(ec2, subnet_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'], AZ)
+    #    print(f"Subnet X created")
 
 if __name__ == "__main__":
     main()
