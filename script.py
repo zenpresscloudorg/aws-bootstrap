@@ -474,7 +474,7 @@ def main():
     print(subnet_public_ids)
 
     for az, subnet_cidr in zip(azs, private_subnets):
-        subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
+        subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-priv-{az}"
         if check_subnet_exists(ec2, subnet_name):
             print(f"Subnet '{subnet_name}' already exists, skipping")
             subnet_info = get_subnet_by_name(ec2, subnet_name)
