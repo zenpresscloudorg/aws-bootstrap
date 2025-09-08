@@ -52,6 +52,12 @@ def check_iam_role_exists(iam, role_name):
         return True
     except iam.exceptions.NoSuchEntityException:
         return False
+    
+def get_iam_role_arn(iam, role_name):
+    """
+    Returns the ARN of the specified IAM role.
+    """
+    return iam.get_role(RoleName=role_name)["Role"]["Arn"]
 
 def create_iam_role(iam, role_name, trust_policy):
     """
@@ -188,7 +194,7 @@ def main():
     oidc_thumbprint = "6938fd4d98bab03faadb97b34396831e3780aea1"
 
     if check_oidc_provider_exists(iam, oidc_url):
-        print("OIDC provider already exists.")
+        print("OIDC provider already exists, skipping")
     else:
         create_oidc_provider(iam, f"https://{oidc_url}", oidc_client_id, oidc_thumbprint)
         print(f"OIDC provider created")
@@ -216,6 +222,7 @@ def main():
 
     if check_iam_role_exists(iam, role_name):
         print(f"IAM role already exists.")
+        role_arn = get_iam_role_arn(iam, role_name)
     else:
         role_arn = create_iam_role(iam, role_name, trust_policy)
         print(f"IAM role created")
