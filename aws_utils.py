@@ -31,22 +31,12 @@ def create_oidc_provider(iam, url, clientid, oidc_thumbprint):
     iam.create_open_id_connect_provider(
         Url=url, ClientIDList=[clientid], ThumbprintList=[oidc_thumbprint]
     )
-
-def check_iam_role_exists(iam, role_name):
-    """
-    Returns True if the IAM role with the given name exists, False otherwise.
-    """
-    try:
-        iam.get_role(RoleName=role_name)
-        return True
-    except iam.exceptions.NoSuchEntityException:
-        return False
     
 def get_iam_role_arn(iam, role_name):
-    """
-    Returns the ARN of the specified IAM role.
-    """
-    return iam.get_role(RoleName=role_name)["Role"]["Arn"]
+    try:
+        return iam.get_role(RoleName=role_name)["Role"]["Arn"]
+    except iam.exceptions.NoSuchEntityException:
+        return False
 
 def create_iam_role(iam, role_name, trust_policy):
     """

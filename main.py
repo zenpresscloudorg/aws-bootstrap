@@ -58,9 +58,9 @@ def main():
         ]
     }
 
-    if check_iam_role_exists(iam, role_name):
-        print(f"IAM role already exists, skipping")
-        role_arn = get_iam_role_arn(iam, role_name)
+    role_arn = get_iam_role_arn(iam, role_name)
+    if role_arn:
+        print("IAM role already exists, skipping")
     else:
         role_arn = create_iam_role(iam, role_name, trust_policy)
         print(f"IAM role created, Name {role_name}")
