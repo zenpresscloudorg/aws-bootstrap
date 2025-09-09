@@ -718,12 +718,12 @@ def main():
 
     azs = get_available_azs(ec2)
     azs_len = len(azs)
-    public_subnets = [str(ipaddress.IPv4Network(f"10.0.{i}.0/24")) for i in range(azs_len)]
-    private_subnets = [str(ipaddress.IPv4Network(f"10.0.{i+10}.0/24")) for i in range(azs_len)]
+    public_subnets_cidr = [str(ipaddress.IPv4Network(f"10.0.{i}.0/24")) for i in range(azs_len)]
+    private_subnets_cidr = [str(ipaddress.IPv4Network(f"10.0.{i+10}.0/24")) for i in range(azs_len)]
     subnet_public_ids = []
     subnet_private_ids = []
 
-    for az, subnet_cidr in zip(azs, public_subnets):
+    for az, subnet_cidr in zip(azs, public_subnets_cidr):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
         if check_subnet_exists(ec2, subnet_name):
             print(f"Subnet '{subnet_name}' already exists, skipping")
@@ -734,7 +734,7 @@ def main():
             print(f"Subnet public created")
         subnet_public_ids.append(subnet_id)
 
-    for az, subnet_cidr in zip(azs, private_subnets):
+    for az, subnet_cidr in zip(azs, private_subnets_cidr):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-priv-{az}"
         if check_subnet_exists(ec2, subnet_name):
             print(f"Subnet '{subnet_name}' already exists, skipping")
@@ -796,7 +796,7 @@ def main():
     systemctl enable iptables
     systemctl start iptables
     sudo systemctl enable --now tailscaled
-    sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(subnet_private_ids)}
+    sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(private_subnets_cidr)}
     """
 
     if check_instance_exists(ec2, natgw_instance_name):
