@@ -1,3 +1,5 @@
+# Imports
+
 import os
 import json
 import boto3
@@ -11,10 +13,10 @@ iam = boto3.client("iam")
 sts = boto3.client("sts")
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
+route53 = boto3.client("route53")
 session = boto3.session.Session()
-import os
-import json
-import ipaddress
+
+# Functions
 
 def load_and_validate_vars_json(file):
     """
@@ -392,7 +394,6 @@ def create_rt(ec2, vpc_id, rt_name):
         Resources=[rt_id],
         Tags=[{"Key": "Name", "Value": rt_name}]
     )
-    print(f"Route Table '{rt_name}' creada. ID: {rt_id}")
     return rt_id
 
 def create_route(ec2, rt_id, destination_cidr, target_type, target_id):
@@ -565,6 +566,84 @@ def disable_source_dest_check(ec2, instance_id):
         InstanceId=instance_id,
         SourceDestCheck={'Value': False}
     )
+
+def check_hosted_zone_exists(route53, zone_name):
+    """
+    Comprueba si existe una hosted zone (pública o privada) con ese nombre exacto (debe terminar en '.').
+    Devuelve (True, zone_id) si existe, (False, None) si no existe.
+    """
+    paginator = route53.get_paginator("list_hosted_zones")
+    for page in paginator.paginate():
+        for zone in page["HostedZones"]:
+            # Route53 guarda los nombres con '.' al final
+            if zone["Name"] == zone_name:
+                return True, zone["Id"]
+    return False, None
+
+def get_hosted_zone_id_and_dns(route53, zone_name):
+    """
+    Devuelve el zone_id y, si la zona es pública, una lista de nameservers.
+    Si es privada, la lista de nameservers será None.
+    - zone_name: debe terminar en '.'
+    """
+    if not zone_name.endswith('.'):
+        zone_name += '.'
+
+    paginator = route53.get_paginator("list_hosted_zones")
+    for page in paginator.paginate():
+        for zone in page["HostedZones"]:
+            if zone["Name"] == zone_name:
+                zone_id = zone["Id"]
+                # Saber si es pública o privada
+                is_private = zone.get("Config", {}).get("PrivateZone", False)
+                if not is_private:
+                    # Buscar los NS
+                    resp = route53.get_hosted_zone(Id=zone_id)
+                    ns_list = []
+                    # Extraer los NS records
+                    for rr in resp["DelegationSet"]["NameServers"]:
+                        ns_list.append(rr)
+                    return zone_id, ns_list
+                else:
+                    return zone_id, None
+    return None, None  # No encontrada
+
+def create_hosted_zone(route53, zone_name, is_private=False, vpc_id=None, vpc_region=None, comment="Created by script"):
+    """
+    Crea una hosted zone en Route53.
+    - zone_name: 'example.com.'
+    - is_private: True para privada, False para pública
+    - vpc_id, vpc_region: necesarios solo si es privada
+    Devuelve:
+      - Si pública: (zone_id, [ns1, ns2, ...])
+      - Si privada: (zone_id, None)
+    """
+    kwargs = {
+        "Name": zone_name,
+        "CallerReference": str(time.time()),
+        "HostedZoneConfig": {"Comment": comment}
+    }
+
+    if is_private:
+        if not vpc_id or not vpc_region:
+            raise ValueError("Para zonas privadas debes indicar vpc_id y vpc_region")
+        kwargs["VPC"] = {
+            "VPCRegion": vpc_region,
+            "VPCId": vpc_id
+        }
+        kwargs["HostedZoneConfig"]["PrivateZone"] = True
+
+    response = route53.create_hosted_zone(**kwargs)
+    zone_id = response["HostedZone"]["Id"]
+    if not is_private:
+        # Busca el record de NS
+        for record in response["DelegationSet"]["NameServers"]:
+            print("NS:", record)
+        ns_list = response["DelegationSet"]["NameServers"]
+        return zone_id, ns_list
+    else:
+        return zone_id, None
+
 
 # Main
 
@@ -842,6 +921,23 @@ def main():
             associate_rt_to_subnet(ec2, subnet_id, rt_priv_id)
         print(f"Route Table private created and associated to private subnets")
 
+    # Hostedzones
+
+    for zone in vars_json["hostedzones_public"]:
+        zone_name = zone if zone.endswith('.') else zone + '.'
+        if check_hosted_zone_exists(route53, zone_name):
+            print(f"Public Hosted Zone '{zone_name}' exists, skipping")
+        else:
+            zone_id, ns_list = create_hosted_zone(route53, zone_name, is_private=False)
+            print(f"Public Hosted zone created '{zone_name}'. Nameservers: {ns_list}")
+
+    for zone in vars_json["hostedzones_private"]:
+        zone_name = zone if zone.endswith('.') else zone + '.'
+        if check_hosted_zone_exists(route53, zone_name):
+            print(f"Privatee Hosted Zone '{zone_name}' exists, skipping")
+        else:
+            zone_id = create_hosted_zone(route53, zone_name, is_private=True, vpc_id=vpc_id, vpc_region=account_region)
+            print(f"Hosted zone privada '{zone_name}' creada (ID: {zone_id})")
 
 if __name__ == "__main__":
     main()
