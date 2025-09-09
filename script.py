@@ -733,27 +733,6 @@ def main():
         attach_igw_to_vpc(ec2, igw_id, vpc_id)
         print("IGW created and attached to VPC")
 
-    # Route tables
-
-    rt_pub_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-pub"
-    rt_priv_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-priv"
-
-    if check_rt_exists(ec2, vpc_id, rt_pub_name):
-        print(f"Route Table public exists, skipping")
-    else:
-        rt_pub_id = create_rt(ec2, vpc_id, rt_pub_name)
-        create_route(ec2, rt_pub_id, '0.0.0.0/0', 'GatewayId', igw_id)
-        for subnet_id in subnet_public_ids:
-            associate_rt_to_subnet(ec2, subnet_id, rt_pub_id)
-        print(f"Route Table public created, added IGW and associated to public subnets")
-
-    if check_rt_exists(ec2, vpc_id, rt_priv_name):
-        print(f"Route Table private exists, skipping")
-    else:
-        rt_priv_id = create_rt(ec2, vpc_id, rt_priv_name)
-        for subnet_id in subnet_private_ids:
-            associate_rt_to_subnet(ec2, subnet_id, rt_priv_id)
-        print(f"Route Table private created and associated to private subnets")
 
     # Security groups
 
@@ -816,6 +795,29 @@ def main():
         eip_natgw_id = create_eip(ec2)
         associate_eip_to_instance(ec2, eip_natgw_id, natgw_instance_id)
         print(f"Ec2 natgw created and EIP associated")
+
+    # Route tables
+
+    rt_pub_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-pub"
+    rt_priv_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-rt-priv"
+
+    if check_rt_exists(ec2, vpc_id, rt_pub_name):
+        print(f"Route Table public exists, skipping")
+    else:
+        rt_pub_id = create_rt(ec2, vpc_id, rt_pub_name)
+        create_route(ec2, rt_pub_id, '0.0.0.0/0', 'GatewayId', igw_id)
+        for subnet_id in subnet_public_ids:
+            associate_rt_to_subnet(ec2, subnet_id, rt_pub_id)
+        print(f"Route Table public created, added IGW and associated to public subnets")
+
+    if check_rt_exists(ec2, vpc_id, rt_priv_name):
+        print(f"Route Table private exists, skipping")
+    else:
+        rt_priv_id = create_rt(ec2, vpc_id, rt_priv_name)
+        #create_route(ec2, rt_priv_id, '0.0.0.0/0', 'InstanceId', natgw_instance_id)
+        for subnet_id in subnet_private_ids:
+            associate_rt_to_subnet(ec2, subnet_id, rt_priv_id)
+        print(f"Route Table private created and associated to private subnets")
 
 
 if __name__ == "__main__":
