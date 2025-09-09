@@ -722,18 +722,6 @@ def main():
             print(f"Subnet private created")
         subnet_private_ids.append(subnet_id)
 
-    # IGW
-
-    igw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-igw-main"
-
-    if check_igw_exists(ec2, igw_name):
-        print("IGW exists, skipping")
-    else:
-        igw_id = create_igw(ec2, igw_name)
-        attach_igw_to_vpc(ec2, igw_id, vpc_id)
-        print("IGW created and attached to VPC")
-
-
     # Security groups
 
     sg_test_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-test"
@@ -753,6 +741,17 @@ def main():
     else:
         sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name, "ec2-natgw")
         print(f"SG natgw created and inbound rule added")
+
+    # IGW
+
+    igw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-igw-main"
+
+    if check_igw_exists(ec2, igw_name):
+        print("IGW exists, skipping")
+    else:
+        igw_id = create_igw(ec2, igw_name)
+        attach_igw_to_vpc(ec2, igw_id, vpc_id)
+        print("IGW created and attached to VPC")
 
     # NATGW
 
@@ -775,7 +774,6 @@ def main():
     sudo systemctl enable --now tailscaled
     sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(subnet_private_ids)}
     """
-
 
     if check_instance_exists(ec2, natgw_instance_name):
         print(f"Ec2 natgw exists, skipping")
