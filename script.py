@@ -659,6 +659,7 @@ def main():
 
     if check_keypair_exists(ec2, keypair_name):
         print("Key pair exists, skipping")
+        keypair_id = keypair_name
     else:
         keypair_id = create_keypair(ec2, keypair_name)
         keypair_file = os.path.join(os.path.expanduser("~"), f"{keypair_name}.pem")
