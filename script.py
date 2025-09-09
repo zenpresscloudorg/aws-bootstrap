@@ -837,7 +837,7 @@ def main():
         print(f"Route Table private exists, skipping")
     else:
         rt_priv_id = create_rt(ec2, vpc_id, rt_priv_name)
-        #create_route(ec2, rt_priv_id, '0.0.0.0/0', 'InstanceId', natgw_instance_id)
+        create_route(ec2, rt_priv_id, '0.0.0.0/0', 'InstanceId', natgw_instance_id)
         for subnet_id in subnet_private_ids:
             associate_rt_to_subnet(ec2, subnet_id, rt_priv_id)
         print(f"Route Table private created and associated to private subnets")
