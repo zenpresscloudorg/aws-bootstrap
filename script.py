@@ -431,6 +431,20 @@ def check_igw_exists(ec2, igw_name):
     )
     return len(response.get("InternetGateways", [])) > 0
 
+def get_igw_id(ec2, igw_name):
+    """
+    Devuelve el InternetGatewayId del IGW con el tag Name indicado, o None si no existe.
+    """
+    response = ec2.describe_internet_gateways(
+        Filters=[
+            {"Name": "tag:Name", "Values": [igw_name]}
+        ]
+    )
+    igws = response.get("InternetGateways", [])
+    if igws:
+        return igws[0]["InternetGatewayId"]
+    return None
+
 def create_igw(ec2, igw_name):
     """
     Crea un Internet Gateway y lo etiqueta con Name=igw_name.
@@ -748,6 +762,7 @@ def main():
 
     if check_igw_exists(ec2, igw_name):
         print("IGW exists, skipping")
+        igw_id = get_igw_id(ec2, igw_name)
     else:
         igw_id = create_igw(ec2, igw_name)
         attach_igw_to_vpc(ec2, igw_id, vpc_id)
