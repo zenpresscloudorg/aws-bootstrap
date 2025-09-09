@@ -779,8 +779,9 @@ def main():
     systemctl enable iptables
     systemctl start iptables
     sudo systemctl enable --now tailscaled
-    sudo tailscale up --auth-key={vars["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(subnet_private_ids)}
+    sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(subnet_private_ids)}
     """
+
 
     if check_instance_exists(ec2, "mi-instancia-test"):
         print(f"Ec2 natgw exists, skipping")
