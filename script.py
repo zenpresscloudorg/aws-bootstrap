@@ -636,9 +636,6 @@ def create_hosted_zone(route53, zone_name, is_private=False, vpc_id=None, vpc_re
     response = route53.create_hosted_zone(**kwargs)
     zone_id = response["HostedZone"]["Id"]
     if not is_private:
-        # Busca el record de NS
-        for record in response["DelegationSet"]["NameServers"]:
-            print("NS:", record)
         ns_list = response["DelegationSet"]["NameServers"]
         return zone_id, ns_list
     else:
