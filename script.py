@@ -445,8 +445,6 @@ def create_eip(ec2):
     """
     response = ec2.allocate_address(Domain="vpc")
     allocation_id = response["AllocationId"]
-    public_ip = response["PublicIp"]
-    print(f"EIP creada: {public_ip} (AllocationId: {allocation_id})")
     return allocation_id
 
 def associate_eip_to_instance(ec2, allocation_id, instance_id):
