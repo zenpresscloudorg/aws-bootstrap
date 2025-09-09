@@ -556,6 +556,15 @@ def create_ec2_instance(ec2, instance_name, ebs_name, instance_type,ami_id, key_
     waiter.wait(InstanceIds=[instance_id])
     return instance_id
 
+def disable_source_dest_check(ec2, instance_id):
+    """
+    Desactiva el source/destination check en una instancia EC2.
+    Esto es necesario por ejemplo para instancias NAT.
+    """
+    ec2.modify_instance_attribute(
+        InstanceId=instance_id,
+        SourceDestCheck={'Value': False}
+    )
 
 # Main
 
@@ -805,9 +814,10 @@ def main():
             sg_natgw_id,
             natgw_instance_userdata
         )
+        disable_source_dest_check(ec2, natgw_instance_id)
         eip_natgw_id = create_eip(ec2)
         associate_eip_to_instance(ec2, eip_natgw_id, natgw_instance_id)
-        print(f"Ec2 natgw created and EIP associated")
+        print(f"Ec2 natgw created and EIP associated, disabled check")
 
     # Route tables
 
