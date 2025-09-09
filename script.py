@@ -439,6 +439,120 @@ def attach_igw_to_vpc(ec2, igw_id, vpc_id):
         VpcId=vpc_id
     )
 
+def create_eip(ec2):
+    """
+    Crea una Elastic IP y devuelve su AllocationId.
+    """
+    response = ec2.allocate_address(Domain="vpc")
+    allocation_id = response["AllocationId"]
+    public_ip = response["PublicIp"]
+    print(f"EIP creada: {public_ip} (AllocationId: {allocation_id})")
+    return allocation_id
+
+def associate_eip_to_instance(ec2, allocation_id, instance_id):
+    """
+    Asocia una Elastic IP (EIP) a una instancia EC2.
+    """
+    ec2.associate_address(
+        AllocationId=allocation_id,
+        InstanceId=instance_id
+    )
+
+def get_latest_ami_id(ec2, ami_name_pattern, arch="x86_64", owners=["amazon"]):
+    """
+    Devuelve el ImageId de la última AMI que coincida con el patrón de nombre (puede contener wildcards '*'),
+    arquitectura ('arm64' o 'x86_64') y lista de owners (por defecto solo 'amazon').
+    """
+    response = ec2.describe_images(
+        Owners=owners,
+        Filters=[
+            {"Name": "name", "Values": [ami_name_pattern]},
+            {"Name": "architecture", "Values": [arch]},
+            {"Name": "state", "Values": ["available"]}
+        ]
+    )
+    images = response.get("Images", [])
+    if not images:
+        print(f"No se encontraron AMIs con patrón '{ami_name_pattern}', arquitectura '{arch}' y owners {owners}")
+        return None
+
+    # Ordena por fecha de creación descendente y toma la última (más nueva)
+    images.sort(key=lambda x: x["CreationDate"], reverse=True)
+    latest_ami_id = images[0]["ImageId"]
+    print(f"AMI más reciente encontrada: {latest_ami_id} (fecha: {images[0]['CreationDate']})")
+    return latest_ami_id
+
+def check_instance_exists(ec2, instance_name):
+    """
+    Devuelve True si existe al menos una instancia EC2 con el tag Name=instance_name, False si no.
+    """
+    response = ec2.describe_instances(
+        Filters=[
+            {"Name": "tag:Name", "Values": [instance_name]},
+            {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
+        ]
+    )
+    reservations = response.get("Reservations", [])
+    instances = [i for r in reservations for i in r.get("Instances", [])]
+    return len(instances) > 0
+
+def get_instance_id_by_name(ec2, instance_name):
+    """
+    Devuelve el InstanceId de la primera instancia con el tag Name=instance_name, o None si no existe.
+    """
+    response = ec2.describe_instances(
+        Filters=[
+            {"Name": "tag:Name", "Values": [instance_name]},
+            {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
+        ]
+    )
+    reservations = response.get("Reservations", [])
+    for reservation in reservations:
+        for instance in reservation.get("Instances", []):
+            return instance["InstanceId"]
+    return None
+
+def create_ec2_instance(ec2, instance_name, ebs_name, instance_type,ami_id, key_name, subnet_id, sg_id, user_data=None):
+    """
+    Lanza una instancia EC2 y espera a que esté en estado 'running'.
+    Devuelve el InstanceId creado.
+    """
+    block_device_mappings = [{
+        'DeviceName': '/dev/xvda',
+        'Ebs': {
+            'DeleteOnTermination': True,
+        }
+    }]
+
+    launch_args = {
+        "ImageId": ami_id,
+        "InstanceType": instance_type,
+        "KeyName": key_name,
+        "SubnetId": subnet_id,
+        "SecurityGroupIds": [sg_id] if isinstance(sg_id, str) else sg_id,
+        "BlockDeviceMappings": block_device_mappings,
+        "TagSpecifications": [
+            {
+                "ResourceType": "instance",
+                "Tags": [{"Key": "Name", "Value": instance_name}]
+            },
+            {
+                "ResourceType": "volume",
+                "Tags": [{"Key": "Name", "Value": ebs_name}]
+            }
+        ],
+        "MinCount": 1,
+        "MaxCount": 1
+    }
+    if user_data:
+        launch_args["UserData"] = user_data
+
+    response = ec2.run_instances(**launch_args)
+    instance_id = response["Instances"][0]["InstanceId"]
+    waiter = ec2.get_waiter('instance_running')
+    waiter.wait(InstanceIds=[instance_id])
+    return instance_id
+
 
 # Main
 
@@ -639,17 +753,6 @@ def main():
             associate_subnet_to_rt(ec2, subnet_id, rt_priv_id)
         print(f"Route Table private created and associated to private subnets")
 
-    # IGW
-
-    igw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-igw-main"
-
-    if check_igw_exists(ec2, igw_name):
-        print("IGW exists, skipping")
-    else:
-        igw_id = create_igw(ec2, igw_name)
-        attach_igw_to_vpc(ec2, igw_id, vpc_id)
-        print("IGW created and attached to VPC")
-
     # Security groups
 
     sg_test_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-test"
@@ -669,6 +772,59 @@ def main():
     else:
         sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name, "ec2-natgw")
         print(f"SG natgw created and inbound rule added")
+
+    # IGW
+
+    igw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-igw-main"
+
+    if check_igw_exists(ec2, igw_name):
+        print("IGW exists, skipping")
+    else:
+        igw_id = create_igw(ec2, igw_name)
+        attach_igw_to_vpc(ec2, igw_id, vpc_id)
+        print("IGW created and attached to VPC")
+
+    # NATGW
+
+    natgw_instance_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ec2-natgw"
+    natgw_ebs_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-natgw"
+    ami_id = get_latest_ami_id(ec2,ami_name_pattern="al2023-ami-minimal-arm64*",arch="arm64")
+    natgw_instance_userdata = f"""#!/bin/bash
+    sudo yum update -y
+    sudo yum install -y yum-utils
+    sudo yum-config-manager --add-repo https://pkgs.tailscale.com/stable/amazon-linux/2023/tailscale.repo
+    sudo yum install -y iptables-services tailscale
+    sysctl -w net.ipv4.ip_forward=1
+    echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+    echo 'net.ipv6.conf.all.forwarding = 1' >> /etc/sysctl.conf
+    sudo sysctl -p /etc/sysctl.conf
+    ETH_IFACE=$(ip route | grep default | awk '{{print $5}}')
+    iptables -t nat -A POSTROUTING -o $ETH_IFACE -j MASQUERADE
+    service iptables save
+    systemctl enable iptables
+    systemctl start iptables
+    sudo systemctl enable --now tailscaled
+    sudo tailscale up --auth-key={vars["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(subnet_private_ids)}
+    """
+
+    if check_instance_exists(ec2, "mi-instancia-test"):
+        print(f"Ec2 natgw exists, skipping")
+        natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
+    else:
+        natgw_instance_id = create_ec2_instance(
+            ec2,
+            natgw_instance_name,
+            natgw_ebs_name,
+            "t4g.nano",
+            ami_id,
+            keypair_id,
+            subnet_public_ids[0],
+            sg_natgw_id,
+            natgw_instance_userdata
+        )
+        eip_natgw_id = create_eip(ec2)
+        associate_eip_to_instance(ec2, eip_natgw_id, natgw_instance_id)
+        print(f"Ec2 natgw created and EIP associated")
 
 
 if __name__ == "__main__":
