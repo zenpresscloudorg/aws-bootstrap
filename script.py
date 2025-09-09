@@ -929,7 +929,7 @@ def main():
             print(f"Public Hosted Zone '{zone_name}' exists, skipping")
         else:
             zone_id, ns_list = create_hosted_zone(route53, zone_name, is_private=False)
-            print(f"Public Hosted zone created '{zone_name}'. Nameservers: {ns_list}")
+            print(f"Public Hosted zone created '{zone_name}'. Zone ID: {zone_id}, Nameservers: {ns_list}")
 
     for zone in vars_json["hostedzones_private"]:
         zone_name = zone if zone.endswith('.') else zone + '.'
@@ -937,7 +937,7 @@ def main():
             print(f"Privatee Hosted Zone '{zone_name}' exists, skipping")
         else:
             zone_id = create_hosted_zone(route53, zone_name, is_private=True, vpc_id=vpc_id, vpc_region=account_region)
-            print(f"Hosted zone privada '{zone_name}' creada (ID: {zone_id})")
+            print(f"Private Hosted zone Created '{zone_name}'")
 
 if __name__ == "__main__":
     main()
