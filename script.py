@@ -458,30 +458,6 @@ def associate_eip_to_instance(ec2, allocation_id, instance_id):
         InstanceId=instance_id
     )
 
-def get_latest_ami_id(ec2, ami_name_pattern, arch="x86_64", owners=["amazon"]):
-    """
-    Devuelve el ImageId de la última AMI que coincida con el patrón de nombre (puede contener wildcards '*'),
-    arquitectura ('arm64' o 'x86_64') y lista de owners (por defecto solo 'amazon').
-    """
-    response = ec2.describe_images(
-        Owners=owners,
-        Filters=[
-            {"Name": "name", "Values": [ami_name_pattern]},
-            {"Name": "architecture", "Values": [arch]},
-            {"Name": "state", "Values": ["available"]}
-        ]
-    )
-    images = response.get("Images", [])
-    if not images:
-        print(f"No se encontraron AMIs con patrón '{ami_name_pattern}', arquitectura '{arch}' y owners {owners}")
-        return None
-
-    # Ordena por fecha de creación descendente y toma la última (más nueva)
-    images.sort(key=lambda x: x["CreationDate"], reverse=True)
-    latest_ami_id = images[0]["ImageId"]
-    print(f"AMI más reciente encontrada: {latest_ami_id} (fecha: {images[0]['CreationDate']})")
-    return latest_ami_id
-
 def check_instance_exists(ec2, instance_name):
     """
     Devuelve True si existe al menos una instancia EC2 con el tag Name=instance_name, False si no.
@@ -788,7 +764,6 @@ def main():
 
     natgw_instance_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ec2-natgw"
     natgw_ebs_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-natgw"
-    ami_id = get_latest_ami_id(ec2,ami_name_pattern="al2023-ami-minimal-arm64*",arch="arm64")
     natgw_instance_userdata = f"""#!/bin/bash
     sudo yum update -y
     sudo yum install -y yum-utils
@@ -816,7 +791,7 @@ def main():
             natgw_instance_name,
             natgw_ebs_name,
             "t4g.nano",
-            ami_id,
+            "ami-0cd0767d8ed6ad0a9",
             keypair_id,
             subnet_public_ids[0],
             sg_natgw_id,
