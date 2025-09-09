@@ -745,7 +745,7 @@ def main():
         create_route(ec2, rt_pub_id, '0.0.0.0/0', 'GatewayId', igw_id)
         for subnet_id in subnet_public_ids:
             associate_rt_to_subnet(ec2, subnet_id, rt_pub_id)
-        print(f"Route Table public created and associated to public subnets")
+        print(f"Route Table public created, added IGW and associated to public subnets")
 
     if check_rt_exists(ec2, vpc_id, rt_priv_name):
         print(f"Route Table private exists, skipping")
@@ -798,7 +798,7 @@ def main():
     """
 
 
-    if check_instance_exists(ec2, "mi-instancia-test"):
+    if check_instance_exists(ec2, natgw_instance_name):
         print(f"Ec2 natgw exists, skipping")
         natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
     else:
