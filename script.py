@@ -577,8 +577,8 @@ def check_hosted_zone_exists(route53, zone_name):
         for zone in page["HostedZones"]:
             # Route53 guarda los nombres con '.' al final
             if zone["Name"] == zone_name:
-                return True, zone["Id"]
-    return False, None
+                return True
+    return False
 
 def get_hosted_zone_id_and_dns(route53, zone_name):
     """
