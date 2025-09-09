@@ -690,7 +690,7 @@ def main():
         role_arn = get_iam_role_arn(iam, role_name)
     else:
         role_arn = create_iam_role(iam, role_name, trust_policy)
-        print(f"IAM role created")
+        print(f"IAM role created, Name {role_name}")
 
     # Role policy
 
@@ -763,7 +763,7 @@ def main():
         print(f"S3 bucket already exists, skipping")
     else:
         create_s3(s3, s3_name, s3_policy, account_region)
-        print(f"S3 bucket created")
+        print(f"S3 bucket created, Name {s3_name}")
 
     # KeyPair
 
@@ -777,7 +777,7 @@ def main():
         keypair_file = os.path.join(os.path.expanduser("~"), f"{keypair_name}.pem")
         with open(keypair_file, "w") as f:
             f.write(keypair_id)
-        print(f"Private key saved to {keypair_file}")
+        print(f"Private key saved to {keypair_file}, Please download the file")
 
     # VPC
 
@@ -788,7 +788,7 @@ def main():
         vpc_id = get_vpc_id(ec2, vpc_name)
     else:
         vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
-        print(f"Vpc created")
+        print(f"Vpc created, Name  {vpc_name}")
 
     # Subnets
 
@@ -807,7 +807,7 @@ def main():
             subnet_id = subnet_info["SubnetId"]
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            print(f"Subnet public created")
+            print(f"Subnet public created, Name {subnet_name}")
         subnet_public_ids.append(subnet_id)
 
     for az, subnet_cidr in zip(azs, private_subnets_cidr):
@@ -818,7 +818,7 @@ def main():
             subnet_id = subnet_info["SubnetId"]
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            print(f"Subnet private created")
+            print(f"Subnet private created, Name {subnet_name}")
         subnet_private_ids.append(subnet_id)
 
     # Security groups
@@ -832,14 +832,14 @@ def main():
     else:
         sg_test_id = create_sg(ec2, vpc_id, sg_test_name, "test")
         create_sg_inbound_rule(ec2, sg_test_id, protocol="-1", cidr="0.0.0.0/0")
-        print(f"SG test created and inbound rule added")
+        print(f"SG test created and inbound rule added, Name {sg_test_name}")
 
     if check_sg_exists(ec2, vpc_id, sg_natgw_name):
         sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
         print(f"SG natgw exists, skipping")
     else:
         sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name, "ec2-natgw")
-        print(f"SG natgw created and inbound rule added")
+        print(f"SG natgw created and inbound rule added, Name {sg_natgw_name}")
 
     # IGW
 
@@ -851,7 +851,7 @@ def main():
     else:
         igw_id = create_igw(ec2, igw_name)
         attach_igw_to_vpc(ec2, igw_id, vpc_id)
-        print("IGW created and attached to VPC")
+        print(f"IGW created and attached to VPC, Name {igw_name}")
 
     # NATGW
 
@@ -893,7 +893,7 @@ def main():
         disable_source_dest_check(ec2, natgw_instance_id)
         eip_natgw_id = create_eip(ec2)
         associate_eip_to_instance(ec2, eip_natgw_id, natgw_instance_id)
-        print(f"Ec2 natgw created and EIP associated, disabled check")
+        print(f"Ec2 natgw created and EIP associated, disabled check, Name {natgw_instance_name}")
 
     # Route tables
 
@@ -907,7 +907,7 @@ def main():
         create_route(ec2, rt_pub_id, '0.0.0.0/0', 'GatewayId', igw_id)
         for subnet_id in subnet_public_ids:
             associate_rt_to_subnet(ec2, subnet_id, rt_pub_id)
-        print(f"Route Table public created, added IGW and associated to public subnets")
+        print(f"Route Table public created, added IGW and associated to public subnets, Name {rt_pub_name}")
 
     if check_rt_exists(ec2, vpc_id, rt_priv_name):
         print(f"Route Table private exists, skipping")
@@ -916,7 +916,7 @@ def main():
         create_route(ec2, rt_priv_id, '0.0.0.0/0', 'InstanceId', natgw_instance_id)
         for subnet_id in subnet_private_ids:
             associate_rt_to_subnet(ec2, subnet_id, rt_priv_id)
-        print(f"Route Table private created and associated to private subnets")
+        print(f"Route Table private created and associated to private subnets, Name {rt_priv_name}")
 
     # Hostedzones
 
@@ -935,6 +935,8 @@ def main():
         else:
             zone_id = create_hosted_zone(route53, zone_name, is_private=True, vpc_id=vpc_id, vpc_region=account_region)
             print(f"Private Hosted zone Created '{zone_name}'")
+
+    # SES
 
 if __name__ == "__main__":
     main()
