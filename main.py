@@ -31,7 +31,7 @@ def main():
     oidc_client_id = "sts.amazonaws.com"
     oidc_thumbprint = "6938fd4d98bab03faadb97b34396831e3780aea1"
 
-    if check_oidc_provider_exists(iam, oidc_url):
+    if check_iam_policy_exists(iam, oidc_url):
         print("OIDC provider already exists, skipping")
     else:
         create_oidc_provider(iam, f"https://{oidc_url}", oidc_client_id, oidc_thumbprint)
@@ -155,13 +155,14 @@ def main():
     # VPC
 
     vpc_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-vpc-main"
+    vpc_id = get_vpc_id(ec2, vpc_name)
 
-    if check_vpc_exists(ec2, vpc_name):
+    if vpc_id:
         print("Vpc exists, skipping")
-        vpc_id = get_vpc_id(ec2, vpc_name)
     else:
         vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
-        print(f"Vpc created, Name  {vpc_name}")
+        print(f"Vpc created, Name {vpc_name}")
+
 
     # Subnets
 
@@ -174,9 +175,9 @@ def main():
 
     for az, subnet_cidr in zip(azs, public_subnets_cidr):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-pub-{az}"
-        if check_subnet_exists(ec2, subnet_name):
+        subnet_info = get_subnet_by_name(ec2, subnet_name)
+        if subnet_info:
             print(f"Subnet '{subnet_name}' already exists, skipping")
-            subnet_info = get_subnet_by_name(ec2, subnet_name)
             subnet_id = subnet_info["SubnetId"]
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
@@ -185,13 +186,14 @@ def main():
 
     for az, subnet_cidr in zip(azs, private_subnets_cidr):
         subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-priv-{az}"
-        if check_subnet_exists(ec2, subnet_name):
+        subnet_info = get_subnet_by_name(ec2, subnet_name)
+        if subnet_info:
             print(f"Subnet '{subnet_name}' already exists, skipping")
-            subnet_info = get_subnet_by_name(ec2, subnet_name)
             subnet_id = subnet_info["SubnetId"]
         else:
             subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            print(f"Subnet private created, Name {subnet_name}")
+            print(f"Subnet public created, Name {subnet_name}")
+
         subnet_private_ids.append(subnet_id)
 
     # Security groups
@@ -199,28 +201,28 @@ def main():
     sg_test_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-test"
     sg_natgw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-natgw"
 
-    if check_sg_exists(ec2, vpc_id, sg_test_name):
-        sg_test_id = get_sg_id(ec2, vpc_id, sg_test_name)
+    sg_test_id = get_sg_id(ec2, vpc_id, sg_test_name)
+    if sg_test_id:
         print(f"SG test exists, skipping")
     else:
         sg_test_id = create_sg(ec2, vpc_id, sg_test_name, "test")
         create_sg_inbound_rule(ec2, sg_test_id, protocol="-1", cidr="0.0.0.0/0")
         print(f"SG test created and inbound rule added, Name {sg_test_name}")
 
-    if check_sg_exists(ec2, vpc_id, sg_natgw_name):
-        sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
+    sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
+    if sg_test_id:
         print(f"SG natgw exists, skipping")
     else:
         sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name, "ec2-natgw")
-        print(f"SG natgw created and inbound rule added, Name {sg_natgw_name}")
+        print(f"SG natgw created, Name {sg_test_name}")
 
     # IGW
 
     igw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-igw-main"
+    igw_id = get_igw_id(ec2, igw_name)
 
-    if check_igw_exists(ec2, igw_name):
+    if igw_id:
         print("IGW exists, skipping")
-        igw_id = get_igw_id(ec2, igw_name)
     else:
         igw_id = create_igw(ec2, igw_name)
         attach_igw_to_vpc(ec2, igw_id, vpc_id)
@@ -248,9 +250,10 @@ def main():
     sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(private_subnets_cidr)}
     """
 
-    if check_instance_exists(ec2, natgw_instance_name):
+    natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
+
+    if natgw_instance_id:
         print(f"Ec2 natgw exists, skipping")
-        natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
     else:
         natgw_instance_id = create_ec2_instance(
             ec2,

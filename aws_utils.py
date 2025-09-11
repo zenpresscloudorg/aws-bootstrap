@@ -151,29 +151,16 @@ def create_s3(s3, s3_name, s3_policy, account_region):
     s3.put_bucket_versioning( Bucket=s3_name, VersioningConfiguration={'Status': 'Enabled'})
     s3.put_bucket_policy(Bucket=s3_name,Policy=json.dumps(s3_policy))
 
-def check_vpc_exists(ec2, vpc_name):
+def get_vpc_id(ec2, vpc_name):
     """
-    Returns True if the VPC with the given name exists, False otherwise.
+    Returns the VPC ID if a VPC with the given name exists.
+    Returns False if it does not exist.
     """
     response = ec2.describe_vpcs(Filters=[{"Name": "tag:Name", "Values": [vpc_name]}])
     vpcs = response.get("Vpcs", [])
     if vpcs:
         return vpcs[0]["VpcId"]
-    return None
-    
-def get_vpc_id(ec2, vpc_name):
-    """
-    Returns the VPC ID for the given Name tag, or None if not found.
-    """
-    response = ec2.describe_vpcs(
-        Filters=[
-            {"Name": "tag:Name", "Values": [vpc_name]}
-        ]
-    )
-    vpcs = response.get("Vpcs", [])
-    if vpcs:
-        return vpcs[0]["VpcId"]
-    return None
+    return False
 
 def create_vpc(ec2, vpc_name, cidr_block, enable_ipv6=False):
     """
@@ -188,18 +175,6 @@ def create_vpc(ec2, vpc_name, cidr_block, enable_ipv6=False):
         ec2.associate_vpc_cidr_block(VpcId=vpc_id, AmazonProvidedIpv6CidrBlock=True)
         print(f"IPv6 enabled for VPC")
     return vpc_id
-
-def check_sg_exists(ec2, vpc_id, sg_name):
-    """
-    Devuelve True si existe un Security Group con ese nombre en la VPC, False si no existe.
-    """
-    response = ec2.describe_security_groups(
-        Filters=[
-            {"Name": "group-name", "Values": [sg_name]},
-            {"Name": "vpc-id", "Values": [vpc_id]}
-        ]
-    )
-    return len(response.get("SecurityGroups", [])) > 0
 
 def get_sg_id(ec2, vpc_id, sg_name):
     """
@@ -252,16 +227,6 @@ def create_sg_inbound_rule(ec2, sg_id, protocol, from_port=None, to_port=None, c
         GroupId=sg_id,
         IpPermissions=[perm]
     )
-
-
-def check_subnet_exists(ec2, subnet_name):
-    """
-    Returns True if a subnet with the given Name tag exists, False otherwise.
-    """
-    response = ec2.describe_subnets(
-        Filters=[{"Name": "tag:Name", "Values": [subnet_name]}]
-    )
-    return len(response.get("Subnets", [])) > 0
 
 def get_subnet_by_name(ec2, subnet_name):
     """
@@ -341,17 +306,6 @@ def associate_rt_to_subnet(ec2, subnet_id, rt_id):
         RouteTableId=rt_id
     )
 
-def check_igw_exists(ec2, igw_name):
-    """
-    Devuelve True si existe un Internet Gateway con el tag Name indicado, False si no existe.
-    """
-    response = ec2.describe_internet_gateways(
-        Filters=[
-            {"Name": "tag:Name", "Values": [igw_name]}
-        ]
-    )
-    return len(response.get("InternetGateways", [])) > 0
-
 def get_igw_id(ec2, igw_name):
     """
     Devuelve el InternetGatewayId del IGW con el tag Name indicado, o None si no existe.
@@ -405,20 +359,6 @@ def associate_eip_to_instance(ec2, allocation_id, instance_id):
         AllocationId=allocation_id,
         InstanceId=instance_id
     )
-
-def check_instance_exists(ec2, instance_name):
-    """
-    Devuelve True si existe al menos una instancia EC2 con el tag Name=instance_name, False si no.
-    """
-    response = ec2.describe_instances(
-        Filters=[
-            {"Name": "tag:Name", "Values": [instance_name]},
-            {"Name": "instance-state-name", "Values": ["pending", "running", "stopping", "stopped"]}
-        ]
-    )
-    reservations = response.get("Reservations", [])
-    instances = [i for r in reservations for i in r.get("Instances", [])]
-    return len(instances) > 0
 
 def get_instance_id_by_name(ec2, instance_name):
     """
