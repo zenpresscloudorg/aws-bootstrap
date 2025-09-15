@@ -2,7 +2,6 @@
 
 import os
 import boto3
-import ipaddress
 from validators import load_and_validate_vars_json
 from aws_utils import *
 
@@ -168,8 +167,8 @@ def main():
 
     azs = get_available_azs(ec2)
     azs_len = len(azs)
-    public_subnets_cidr = [str(ipaddress.IPv4Network(f"10.0.{i}.0/24")) for i in range(azs_len)]
-    private_subnets_cidr = [str(ipaddress.IPv4Network(f"10.0.{i+10}.0/24")) for i in range(azs_len)]
+    public_subnets_cidr = get_subnet_cidrs(vars_json['vpc_cidr'], 24, azs_len)
+    private_subnets_cidr = get_subnet_cidrs(vars_json['vpc_cidr'], 24, azs_len * 2)[azs_len:azs_len*2]
     subnet_public_ids = []
     subnet_private_ids = []
 

@@ -1,6 +1,7 @@
 import json
 import time
 import botocore
+import ipaddress
 
 def get_available_azs(ec2):
     """
@@ -227,6 +228,17 @@ def create_sg_inbound_rule(ec2, sg_id, protocol, from_port=None, to_port=None, c
         GroupId=sg_id,
         IpPermissions=[perm]
     )
+
+def get_subnet_cidrs(vpc_cidr, subnet_prefix, num_subnets):
+    """
+    Divide el rango vpc_cidr en subredes del tamaño subnet_prefix.
+    Devuelve una lista con los CIDRs de las primeras num_subnets subredes.
+    """
+    vpc_net = ipaddress.IPv4Network(vpc_cidr)
+    subnets = list(vpc_net.subnets(new_prefix=subnet_prefix))
+    if len(subnets) < num_subnets:
+        raise ValueError("No hay suficientes subredes disponibles para el tamaño solicitado")
+    return [str(s) for s in subnets[:num_subnets]]
 
 def get_subnet_by_name(ec2, subnet_name):
     """

@@ -22,7 +22,11 @@
 git clone https://github.com/edup92/aws-bootstrap.git
 ```
 
-### 3) Modify vars.json file
+### 3) Modify vars.json file. 
+    Notes:
+    - VPC CIDR must be /16
+    - "hostedzones_public" and "hostedzones_private" arrays can be empty
+    - You need a tailscale api key to access private subnet resources
 
 ### 4) Run
 
