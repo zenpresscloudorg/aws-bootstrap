@@ -248,6 +248,16 @@ def main():
     systemctl start iptables
     sudo systemctl enable --now tailscaled
     sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(private_subnets_cidr)}
+    sudo yum install -y dnsmasq
+    cat <<EOF | sudo tee /etc/dnsmasq.conf
+    interface=tailscale0
+    bind-dynamic
+    no-resolv
+    {''.join(f'server=/{domain}/172.31.0.2\\n' for domain in vars_json["hostedzones_private"])}
+    port=53
+    EOF
+    sudo systemctl enable dnsmasq
+    sudo systemctl restart dnsmasq
     """
 
     if natgw_instance_id:
