@@ -39,6 +39,7 @@ def main():
     # Role
 
     role_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-role-oidc"
+    role_arn = get_iam_role_arn(iam, role_name)
     trust_policy = {
         "Version": "2012-10-17",
         "Statement": [
@@ -57,7 +58,6 @@ def main():
         ]
     }
 
-    role_arn = get_iam_role_arn(iam, role_name)
     if role_arn:
         print("IAM role already exists, skipping")
     else:
@@ -199,8 +199,8 @@ def main():
 
     sg_test_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-test"
     sg_natgw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-natgw"
-
     sg_test_id = get_sg_id(ec2, vpc_id, sg_test_name)
+
     if sg_test_id:
         print(f"SG test exists, skipping")
     else:
@@ -231,6 +231,7 @@ def main():
 
     natgw_instance_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ec2-natgw"
     natgw_ebs_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-natgw"
+    natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
     natgw_instance_userdata = f"""#!/bin/bash
     sudo yum update -y
     sudo yum install -y yum-utils
@@ -248,8 +249,6 @@ def main():
     sudo systemctl enable --now tailscaled
     sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(private_subnets_cidr)}
     """
-
-    natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
 
     if natgw_instance_id:
         print(f"Ec2 natgw exists, skipping")
