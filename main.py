@@ -234,7 +234,7 @@ def main():
     natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
     natgw_instance_userdata = f"""#!/bin/bash
     sudo yum update -y
-    sudo yum install -y yum-utils
+    sudo yum install -y yum-utils ipcalc
     sudo yum-config-manager --add-repo https://pkgs.tailscale.com/stable/amazon-linux/2023/tailscale.repo
     sudo yum install -y iptables-services tailscale
     sysctl -w net.ipv4.ip_forward=1
@@ -248,12 +248,17 @@ def main():
     systemctl start iptables
     sudo systemctl enable --now tailscaled
     sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(private_subnets_cidr)}
+    NET_DEV=$(ip route | awk '/default/ {{print $5; exit}}')
+    CIDR=$(ip -o -f inet addr show $NET_DEV | awk '{{print $4}}')
+    NETWORK=$(ipcalc -n $CIDR | awk -F= '/NETWORK/ {{print $2}}')
+    IFS=. read n1 n2 n3 n4 <<< "$NETWORK"
+    ROUTE53_RESOLVER="$n1.$n2.$n3.$((n4 + 2))"
     sudo yum install -y dnsmasq
     cat <<EOF | sudo tee /etc/dnsmasq.conf
     interface=tailscale0
     bind-dynamic
     no-resolv
-    {''.join(f'server=/{domain}/172.31.0.2\\n' for domain in vars_json["hostedzones_private"])}
+    {''.join(f'server=/{domain}/$ROUTE53_RESOLVER\\n' for domain in vars_json["hostedzones_private"])}
     port=53
     EOF
     sudo systemctl enable dnsmasq
