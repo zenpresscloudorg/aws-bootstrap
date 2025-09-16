@@ -185,17 +185,18 @@ def main():
             print(f"Subnet public created, Name {subnet_name}")
         subnet_public_ids.append(subnet_id)
 
-    for az, subnet_cidr in zip(azs, private_subnets_cidr):
-        subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-priv-{az}"
-        subnet_info = get_subnet_by_name(ec2, subnet_name)
-        if subnet_info:
-            print(f"Subnet '{subnet_name}' already exists, skipping")
-            subnet_id = subnet_info["SubnetId"]
-        else:
-            subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
-            print(f"Subnet public created, Name {subnet_name}")
+    if vars_json.get('vpc_subnet_private_enable', False):
+        for az, subnet_cidr in zip(azs, private_subnets_cidr):
+            subnet_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-subnet-priv-{az}"
+            subnet_info = get_subnet_by_name(ec2, subnet_name)
+            if subnet_info:
+                print(f"Subnet '{subnet_name}' already exists, skipping")
+                subnet_id = subnet_info["SubnetId"]
+            else:
+                subnet_id = create_subnet(ec2, subnet_name, vpc_id, subnet_cidr, az)
+                print(f"Subnet public created, Name {subnet_name}")
 
-        subnet_private_ids.append(subnet_id)
+            subnet_private_ids.append(subnet_id)
 
     # Security groups
 
@@ -231,60 +232,61 @@ def main():
 
     # NATGW
 
-    natgw_instance_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ec2-natgw"
-    natgw_ebs_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-natgw"
-    natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
-    natgw_instance_userdata = f"""#!/bin/bash
-    sudo yum update -y
-    sudo yum install -y yum-utils ipcalc
-    sudo yum-config-manager --add-repo https://pkgs.tailscale.com/stable/amazon-linux/2023/tailscale.repo
-    sudo yum install -y iptables-services tailscale
-    sysctl -w net.ipv4.ip_forward=1
-    echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
-    echo 'net.ipv6.conf.all.forwarding = 1' >> /etc/sysctl.conf
-    sudo sysctl -p /etc/sysctl.conf
-    ETH_IFACE=$(ip route | grep default | awk '{{print $5}}')
-    iptables -t nat -A POSTROUTING -o $ETH_IFACE -j MASQUERADE
-    service iptables save
-    systemctl enable iptables
-    systemctl start iptables
-    sudo systemctl enable --now tailscaled
-    sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(private_subnets_cidr)}
-    NET_DEV=$(ip route | awk '/default/ {{print $5; exit}}')
-    CIDR=$(ip -o -f inet addr show $NET_DEV | awk '{{print $4}}')
-    NETWORK=$(ipcalc -n $CIDR | awk -F= '/NETWORK/ {{print $2}}')
-    IFS=. read n1 n2 n3 n4 <<< "$NETWORK"
-    ROUTE53_RESOLVER="$n1.$n2.$n3.$((n4 + 2))"
-    sudo yum install -y dnsmasq
-    cat <<EOF | sudo tee /etc/dnsmasq.conf
-    interface=tailscale0
-    bind-dynamic
-    no-resolv
-    {''.join(f'server=/{domain}/$ROUTE53_RESOLVER\\n' for domain in vars_json["hostedzones_private"])}
-    port=53
-    EOF
-    sudo systemctl enable dnsmasq
-    sudo systemctl restart dnsmasq
-    """
+    if vars_json.get('vpc_subnet_private_enable', False):
+        natgw_instance_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ec2-natgw"
+        natgw_ebs_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-natgw"
+        natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
+        natgw_instance_userdata = f"""#!/bin/bash
+        sudo yum update -y
+        sudo yum install -y yum-utils ipcalc
+        sudo yum-config-manager --add-repo https://pkgs.tailscale.com/stable/amazon-linux/2023/tailscale.repo
+        sudo yum install -y iptables-services tailscale
+        sysctl -w net.ipv4.ip_forward=1
+        echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+        echo 'net.ipv6.conf.all.forwarding = 1' >> /etc/sysctl.conf
+        sudo sysctl -p /etc/sysctl.conf
+        ETH_IFACE=$(ip route | grep default | awk '{{print $5}}')
+        iptables -t nat -A POSTROUTING -o $ETH_IFACE -j MASQUERADE
+        service iptables save
+        systemctl enable iptables
+        systemctl start iptables
+        sudo systemctl enable --now tailscaled
+        sudo tailscale up --auth-key={vars_json["vpc_subnet_private_tskey"]} --hostname={natgw_instance_name} --advertise-routes={",".join(private_subnets_cidr)}
+        NET_DEV=$(ip route | awk '/default/ {{print $5; exit}}')
+        CIDR=$(ip -o -f inet addr show $NET_DEV | awk '{{print $4}}')
+        NETWORK=$(ipcalc -n $CIDR | awk -F= '/NETWORK/ {{print $2}}')
+        IFS=. read n1 n2 n3 n4 <<< "$NETWORK"
+        ROUTE53_RESOLVER="$n1.$n2.$n3.$((n4 + 2))"
+        sudo yum install -y dnsmasq
+        cat <<EOF | sudo tee /etc/dnsmasq.conf
+        interface=tailscale0
+        bind-dynamic
+        no-resolv
+        {''.join(f'server=/{domain}/$ROUTE53_RESOLVER\\n' for domain in vars_json["hostedzones_private"])}
+        port=53
+        EOF
+        sudo systemctl enable dnsmasq
+        sudo systemctl restart dnsmasq
+        """
 
-    if natgw_instance_id:
-        print(f"Ec2 natgw exists, skipping")
-    else:
-        natgw_instance_id = create_ec2_instance(
-            ec2,
-            natgw_instance_name,
-            natgw_ebs_name,
-            "t4g.nano",
-            "ami-0cd0767d8ed6ad0a9",
-            keypair_id,
-            subnet_public_ids[0],
-            sg_natgw_id,
-            natgw_instance_userdata
-        )
-        disable_source_dest_check(ec2, natgw_instance_id)
-        eip_natgw_id = create_eip(ec2)
-        associate_eip_to_instance(ec2, eip_natgw_id, natgw_instance_id)
-        print(f"Ec2 natgw created and EIP associated, disabled check, Name {natgw_instance_name}")
+        if natgw_instance_id:
+            print(f"Ec2 natgw exists, skipping")
+        else:
+            natgw_instance_id = create_ec2_instance(
+                ec2,
+                natgw_instance_name,
+                natgw_ebs_name,
+                "t4g.nano",
+                "ami-0cd0767d8ed6ad0a9",
+                keypair_id,
+                subnet_public_ids[0],
+                sg_natgw_id,
+                natgw_instance_userdata
+            )
+            disable_source_dest_check(ec2, natgw_instance_id)
+            eip_natgw_id = create_eip(ec2)
+            associate_eip_to_instance(ec2, eip_natgw_id, natgw_instance_id)
+            print(f"Ec2 natgw created and EIP associated, disabled check, Name {natgw_instance_name}")
 
     # Route tables
 
@@ -300,14 +302,15 @@ def main():
             associate_rt_to_subnet(ec2, subnet_id, rt_pub_id)
         print(f"Route Table public created, added IGW and associated to public subnets, Name {rt_pub_name}")
 
-    if check_rt_exists(ec2, vpc_id, rt_priv_name):
-        print(f"Route Table private exists, skipping")
-    else:
-        rt_priv_id = create_rt(ec2, vpc_id, rt_priv_name)
-        create_route(ec2, rt_priv_id, '0.0.0.0/0', 'InstanceId', natgw_instance_id)
-        for subnet_id in subnet_private_ids:
-            associate_rt_to_subnet(ec2, subnet_id, rt_priv_id)
-        print(f"Route Table private created and associated to private subnets, Name {rt_priv_name}")
+    if vars_json.get('vpc_subnet_private_enable', False):
+        if check_rt_exists(ec2, vpc_id, rt_priv_name):
+            print(f"Route Table private exists, skipping")
+        else:
+            rt_priv_id = create_rt(ec2, vpc_id, rt_priv_name)
+            create_route(ec2, rt_priv_id, '0.0.0.0/0', 'InstanceId', natgw_instance_id)
+            for subnet_id in subnet_private_ids:
+                associate_rt_to_subnet(ec2, subnet_id, rt_priv_id)
+            print(f"Route Table private created and associated to private subnets, Name {rt_priv_name}")
 
     # Hostedzones
 
