@@ -161,7 +161,7 @@ def main():
     if vpc_id:
         print("Vpc exists, skipping")
     else:
-        vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6'])
+        vpc_id = create_vpc(ec2, vpc_name, vars_json['vpc_cidr'], vars_json['vpc_ipv6_enable'])
         print(f"Vpc created, Name {vpc_name}")
 
 
