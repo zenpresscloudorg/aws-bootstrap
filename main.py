@@ -67,6 +67,7 @@ def main():
     # Role policy
 
     policy_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-policy-oidc"
+    policy_arn = get_iam_policy_arn(iam, policy_name)
     policy_document = {
         "Version": "2012-10-17",
         "Statement": [
@@ -88,12 +89,13 @@ def main():
         ]
     }
 
-    if check_iam_policy_exists(iam, policy_name):
-        print(f"IAM Policy already exists, skipping")
+    if policy_arn:
+        print("IAM Policy already exists, updating...")
+        update_iam_policy(iam, policy_arn, policy_document)
     else:
         policy_arn = create_iam_policy(iam, policy_name, policy_document)
         attach_policy_to_role(iam, role_name, policy_arn)
-        print(f"IAM Policy created and attached to Role")
+        print("IAM Policy created and attached to Role")
 
     # S3
 

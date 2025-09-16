@@ -53,7 +53,7 @@ def create_iam_role(iam, role_name, trust_policy):
     time.sleep(10)
     return resp["Role"]["Arn"]
 
-def check_iam_policy_exists(iam, policy_name, scope="Local"):
+def get_iam_policy_arn(iam, policy_name, scope="Local"):
     """
     Returns the ARN if the IAM policy with the given name exists, otherwise returns None.
     scope="Local" (default) busca solo en la cuenta, "AWS" busca policies globales de AWS.
@@ -76,6 +76,26 @@ def create_iam_policy(iam, policy_name, policy_document):
     }
     resp = iam.create_policy(**kwargs)
     return resp["Policy"]["Arn"]
+
+def update_iam_policy(iam, policy_arn, policy_document):
+    """
+    Updates the IAM policy by creating a new version and setting it as default.
+    Deletes the oldest non-default version if the 5-version limit is reached.
+    """
+    versions = iam.list_policy_versions(PolicyArn=policy_arn)["Versions"]
+    # If there are 5 versions, delete the oldest non-default version
+    if len(versions) >= 5:
+        non_default_versions = [v for v in versions if not v["IsDefaultVersion"]]
+        oldest = sorted(non_default_versions, key=lambda v: v["CreateDate"])[0]
+        iam.delete_policy_version(
+            PolicyArn=policy_arn,
+            VersionId=oldest["VersionId"]
+        )
+    iam.create_policy_version(
+        PolicyArn=policy_arn,
+        PolicyDocument=json.dumps(policy_document),
+        SetAsDefault=True
+    )
 
 def attach_policy_to_role(iam, role_name, policy_arn):
     """
