@@ -6,7 +6,7 @@
 - Creates tfstate s3 bucket with versioning, encryption and access only to role
 - Creates ec2 keypair for project
 - Add one or more public domains from the project to Route 53 (optional)
-- Creates AZ VPC with 1 public subnet, 1 private subnet and 1 private subnet with NAT router+tailscale
+- Creates AZ VPC with 1 public subnet, 1 private subnet with NAT router+tailscale (Optional)
     - Instance details: ARM Amazon linux 2023, arm on public Subnet, with inbound denied security group and created keypair
     - Tailscale details: Adds machine to Taiscale, added subnet to access nat private instances you need to approbe subnets
     - Nat details: NAT forwarded to allow outbound internet traffic from nat subnet
@@ -25,8 +25,9 @@ git clone https://github.com/edup92/aws-bootstrap.git
 ### 3) Modify vars.json file. 
     Notes:
     - VPC CIDR must be /16
+    - vpc_ipv6_enable must be true or false
     - "hostedzones_public" and "hostedzones_private" arrays can be empty
-    - You need a tailscale api key to access private subnet resources
+    - vpc_subnet_private_enable must be true or false. If is true You need a tailscale api key to access private subnet resources
 
 ### 4) Run
 
