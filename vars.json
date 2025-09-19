@@ -1,12 +1,12 @@
 {
-   "project_name":"test",
-   "project_environment":"dev",
+   "project_name":"demo",
+   "project_environment":"prod",
    "vpc_cidr": "10.0.0.0/16", 
    "vpc_ipv6_enable": true,
    "vpc_subnet_private_enable": true,
-   "vpc_subnet_private_tskey": "test",
-   "hostedzones_public": ["test.com"],
-   "hostedzones_private": ["test.local"],
-   "github_account": "test",
-   "github_repo": "test"
+   "vpc_subnet_private_tskey": "demo",
+   "hostedzones_public": ["demo.demo"],
+   "hostedzones_private": ["demo.demo"],
+   "github_account": "demo.demo",
+   "github_repo": "demo.demo"
 }

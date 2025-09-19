@@ -236,6 +236,7 @@ def main():
         natgw_instance_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ec2-natgw"
         natgw_ebs_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-natgw"
         natgw_instance_id = get_instance_id_by_name(ec2, natgw_instance_name)
+        dnsmasq_servers = ''.join([f'server=/{domain}/$ROUTE53_RESOLVER\\n' for domain in vars_json["hostedzones_private"]])
         natgw_instance_userdata = f"""#!/bin/bash
         sudo yum update -y
         sudo yum install -y yum-utils ipcalc
@@ -262,7 +263,7 @@ def main():
         interface=tailscale0
         bind-dynamic
         no-resolv
-        {''.join(f'server=/{domain}/$ROUTE53_RESOLVER\\n' for domain in vars_json["hostedzones_private"])}
+        {dnsmasq_servers}
         port=53
         EOF
         sudo systemctl enable dnsmasq
