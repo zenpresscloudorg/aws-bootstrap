@@ -281,7 +281,7 @@ def main():
                 "ami-0cd0767d8ed6ad0a9",
                 keypair_id,
                 subnet_public_ids[0],
-                sg_natgw_id,
+                [sg_natgw_id],  # <-- debe ser lista
                 natgw_instance_userdata
             )
             disable_source_dest_check(ec2, natgw_instance_id)
