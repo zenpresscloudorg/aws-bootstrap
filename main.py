@@ -203,6 +203,7 @@ def main():
     sg_test_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-test"
     sg_natgw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-natgw"
     sg_test_id = get_sg_id(ec2, vpc_id, sg_test_name)
+    sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
 
     if sg_test_id:
         print(f"SG test exists, skipping")
@@ -211,8 +212,7 @@ def main():
         create_sg_inbound_rule(ec2, sg_test_id, protocol="-1", cidr="0.0.0.0/0")
         print(f"SG test created and inbound rule added, Name {sg_test_name}")
 
-    sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
-    if sg_test_id:
+    if sg_natgw_id:
         print(f"SG natgw exists, skipping")
     else:
         sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name, "ec2-natgw")
