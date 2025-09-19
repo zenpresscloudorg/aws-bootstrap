@@ -7,7 +7,7 @@ def get_available_azs(ec2):
     """
     Returns a list of available Availability Zones names in the region.
     """
-    response = ec2.describe_availability_zones(
+    response = ec2.describe_avacreate_oidc_providerilability_zones(
         Filters=[{"Name": "state", "Values": ["available"]}]
     )
     return [az["ZoneName"] for az in response["AvailabilityZones"]]

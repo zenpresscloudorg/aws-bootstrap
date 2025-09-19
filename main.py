@@ -30,7 +30,7 @@ def main():
     oidc_client_id = "sts.amazonaws.com"
     oidc_thumbprint = "6938fd4d98bab03faadb97b34396831e3780aea1"
 
-    if check_iam_policy_exists(iam, oidc_url):
+    if check_oidc_provider_exists(iam, oidc_url):
         print("OIDC provider already exists, skipping")
     else:
         create_oidc_provider(iam, f"https://{oidc_url}", oidc_client_id, oidc_thumbprint)
