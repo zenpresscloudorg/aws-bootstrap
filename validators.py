@@ -22,13 +22,15 @@ def load_and_validate_vars_json(file):
         "project_name": str,
         "project_environment": str,
         "vpc_cidr": str,
-        "vpc_ipv6": bool,
+        "vpc_ipv6_enable": bool,
+        "vpc_subnet_private_enable": bool,
         "vpc_subnet_private_tskey": str,
         "hostedzones_public": list,
         "hostedzones_private": list,
         "github_account": str,
         "github_repo": str,
     }
+
     missing = []
     wrong_type = []
 
