@@ -26,7 +26,11 @@ def main():
 
   # Common vars
 
-  name_structure = 
+  name_structure = f"{vars_json['project_name']}-{vars_json['project_environment']}-bootstrap-RESOURCE-oidc"
+
+  # Common vars
+  
+  name_structure = "{project}-{env}-{resource}"
 
   # OIDC Provider
 
