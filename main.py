@@ -374,7 +374,7 @@ def main():
 
   # Terraform
   TERRAFORM_VERSION=$(curl -s https://api.releases.hashicorp.com/v1/releases/terraform/latest | jq -r .version)
-  wget "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_arm64.zip"
+  wget "https://releases.hashicorp.com/terraform/${{TERRAFORM_VERSION}}/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip"
   unzip terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
   sudo mv terraform /usr/local/bin/
   rm terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
