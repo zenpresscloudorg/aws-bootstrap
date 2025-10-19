@@ -27,8 +27,8 @@ def load_and_validate_vars_json(file):
         "vpc_subnet_private_tskey": str,
         "hostedzones_public": list,
         "hostedzones_private": list,
-        "github_account": str,
-        "github_repo": str,
+        "github_org": str,
+        "github_runner_token": str,
     }
 
     missing = []
