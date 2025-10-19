@@ -406,7 +406,10 @@ def main():
   sudo chown "${{RUNNER_USER}}:${{RUNNER_USER}}" "${{RUNNER_HOME}}"
   sudo curl -Ls -o "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" \
     "https://github.com/actions/runner/releases/download/v${{RUNNER_VERSION}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
-  sudo tar -xzf "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" -C "${{RUNNER_HOME}}" || { echo "Error extracting runner" >&2; exit 1; }
+  if ! sudo tar -xzf "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" -C "${{RUNNER_HOME}}"; then
+    echo "Error extracting runner" >&2
+    exit 1
+  fi
   sudo rm -f "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
   sudo chown -R "${{RUNNER_USER}}:${{RUNNER_USER}}" "${{RUNNER_HOME}}"
   sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \
