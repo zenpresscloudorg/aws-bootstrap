@@ -346,7 +346,7 @@ def main():
   for zone in vars_json["hostedzones_private"]:
       zone_name = zone if zone.endswith('.') else zone + '.'
       if check_hosted_zone_exists(route53, zone_name):
-          print(f"Privatee Hosted Zone '{zone_name}' exists, skipping")
+          print(f"Private Hosted Zone '{zone_name}' exists, skipping")
       else:
           zone_id = create_hosted_zone(route53, zone_name, is_private=True, vpc_id=vpc_id, vpc_region=account_region)
           print(f"Private Hosted zone Created '{zone_name}'")
