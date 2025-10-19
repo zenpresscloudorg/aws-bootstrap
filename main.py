@@ -330,13 +330,13 @@ def main():
   # Instance profile
 
   profile_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-instanceprofile-runner"
-  profile_arn = get_instance_profile_arn(iam, profile_name)
   
-  if profile_name:
+  if check_instance_profile_exists(iam, profile_name):
       print("IAM Profile already exists")
+      profile_arn = get_instance_profile_arn(iam, profile_name)
   else:
       profile_ghrunner = create_iam_instance_profile(iam, profile_name)
-      add_role_to_instance_profile(iam, profile_ghrunner, role_arn)
+      add_role_to_instance_profile(iam, profile_name, role_name)
       print("IAM Profile created and attached to Role")
 
   # Github runner
@@ -432,7 +432,7 @@ def main():
           [sg_ghrunner_id],
           ghrunner_instance_userdata
       )
-      associate_iam_instance_profile(ec2, ghrunner_instance_id, profile_ghrunner)
+      associate_iam_instance_profile(ec2, ghrunner_instance_id, profile_name)
       print(f"EC2 ghrunner created and attached to instance profile. Name {ghrunner_instance_name}")
 
   # SES

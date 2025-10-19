@@ -92,6 +92,17 @@ def get_instance_profile_arn(iam, profile_name):
     resp = iam.get_instance_profile(InstanceProfileName=profile_name)
     return resp["InstanceProfile"]["Arn"]
 
+def check_instance_profile_exists(iam, profile_name):
+    """
+    Checks if an IAM instance profile exists.
+    Returns True if exists, False otherwise.
+    """
+    try:
+        iam.get_instance_profile(InstanceProfileName=profile_name)
+        return True
+    except iam.exceptions.NoSuchEntityException:
+        return False
+
 def create_iam_instance_profile(iam, profile_name):
     """
     Creates an IAM instance profile with the specified name.
