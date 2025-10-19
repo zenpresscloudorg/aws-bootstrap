@@ -357,15 +357,19 @@ def main():
   ghrunner_instance_id   = get_instance_id_by_name(ec2, ghrunner_instance_name)
   ghrunner_instance_userdata = f"""#!/bin/bash
   sudo yum update -y
-  sudo yum install -y wget git curl unzip tar gzip jq yq python3 python3-pip
+  sudo yum install -y wget git curl unzip tar gzip jq python3 python3-pip
+
+  # Yq
+
+  sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_arm64 -O /usr/local/bin/yq
+  sudo chmod +x /usr/local/bin/yq
 
   # Terraform
-  TERRAFORM_VERSION=$(curl -sL https://releases.hashicorp.com/terraform/ | \
-    grep -Eo 'terraform_[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d_ -f2)
-  wget https://releases.hashicorp.com/terraform/${{TERRAFORM_VERSION}}/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
-  unzip terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
+  TERRAFORM_VERSION=$(curl -s https://api.releases.hashicorp.com/v1/releases/terraform/latest | jq -r .version)
+  wget "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_arm64.zip"
+  unzip terraform_${TERRAFORM_VERSION}_linux_arm64.zip
   sudo mv terraform /usr/local/bin/
-  rm terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
+  rm terraform_${TERRAFORM_VERSION}_linux_arm64.zip
 
   # Terragrunt
   TG_VERSION=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest | \
