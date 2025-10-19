@@ -229,8 +229,8 @@ def main():
         sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name, "ec2-natgw")
         for cidr in private_subnets_cidr:
             create_sg_inbound_rule(ec2, sg_natgw_id, protocol="-1", cidr=cidr)
-        print(f"SG natgw creado y reglas inbound añadidas para subnets privadas, Name {sg_natgw_name}")
-        print(f"SG natgw created, Name {sg_natgw_name}")
+        print(f"SG test created and inbound rule added, Name {sg_natgw_name}")
+
 
   if sg_ghrunner_id:
       print(f"SG ghrunner exists, skipping")
