@@ -229,10 +229,10 @@ def main():
       print(f"SG natgw created, Name {sg_test_name}")
 
   if sg_ghrunner_id:
-      print(f"SG natgw exists, skipping")
+      print(f"SG ghrunner exists, skipping")
   else:
-      sg_ghrunner_id = create_sg(ec2, vpc_id, sg_ghrunner_name, "ec2-natgw")
-      print(f"SG natgw created, Name {sg_test_name}")
+      sg_ghrunner_id = create_sg(ec2, vpc_id, sg_ghrunner_name, "ec2-ghrunner")
+      print(f"SG ghrunner created, Name {sg_test_name}")
 
   # IGW
 
@@ -352,52 +352,51 @@ def main():
   ghrunner_ebs_name      = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-ghrunner"
   ghrunner_instance_id   = get_instance_id_by_name(ec2, ghrunner_instance_name)
   ghrunner_instance_userdata = f"""#!/bin/bash
-
-  ### 1. Variables de configuración
-
-  ### ─── 1. CONFIGURE THESE VARIABLES ─────────────────────────
-  GH_OWNER="your-org"          # Change to your organisation/user
-  GH_REPO="your-repo"          # Repository name
-  RUNNER_TOKEN="YOUR_TOKEN"    # Registration token (24 h validity)
-  RUNNER_NAME="$(hostname)"
-  RUNNER_LABELS="al2023,arm64"
-
-  ### ─── 2. UPDATE OS & INSTALL DEPENDENCIES ──────────────────
   sudo yum update -y
-  sudo yum install -y curl tar gzip jq
+  sudo yum install -y wget git curl unzip tar gzip jq yq python3 python3-pip
 
-  ### ─── 3. CREATE DEDICATED SERVICE USER ─────────────────────
-  sudo useradd --system --create-home --shell /bin/bash runner
+  # Terraform
+  TERRAFORM_VERSION=$(curl -sL https://releases.hashicorp.com/terraform/ | grep -Eo 'terraform_[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d_ -f2)
+  wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_arm64.zip
+  unzip terraform_${TERRAFORM_VERSION}_linux_arm64.zip
+  sudo mv terraform /usr/local/bin/
+  rm terraform_${TERRAFORM_VERSION}_linux_arm64.zip
 
-  ### ─── 4. DOWNLOAD LATEST RUNNER BINARY (arm64) ─────────────
+  # Terragrunt
+  TG_VERSION=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest | grep tag_name | cut -d '"' -f 4)
+  wget https://github.com/gruntwork-io/terragrunt/releases/download/${TG_VERSION}/terragrunt_linux_arm64
+  sudo mv terragrunt_linux_arm64 /usr/local/bin/terragrunt
+  sudo chmod +x /usr/local/bin/terragrunt
+
+  # Ansible
+  sudo yum install -y ansible
+
+  # AWSCli
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+  unzip awscliv2.zip
+  sudo ./aws/install
+  rm -rf aws awscliv2.zip
+
+  # Runner
+  RUNNER_USER="runner"
   ARCH=arm64
   RUNNER_VERSION="$(curl -s https://api.github.com/repos/actions/runner/releases/latest | jq -r .tag_name | tr -d 'v')"
   RUNNER_HOME="/opt/actions-runner"
 
-  sudo mkdir -p ${{RUNNER_HOME}}
-  cd ${{RUNNER_HOME}}
-  sudo curl -Ls -o "actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" \
-      "https://github.com/actions/runner/releases/download/v${{RUNNER_VERSION}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
-  sudo tar -xzf "actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
-  sudo chown -R runner:runner ${{RUNNER_HOME}}
-
-  ### ─── 5. INSTALL LIB DEPENDENCIES & CONFIGURE ──────────────
-  sudo -u runner ./bin/installdependencies.sh
-
-  sudo -u runner ./config.sh \
-    --url "https://github.com/${{GH_OWNER}}/${{GH_REPO}}" \
-    --token "${{RUNNER_TOKEN}}" \
-    --name "${{RUNNER_NAME}}" \
-    --labels "${{RUNNER_LABELS}}" \
-    --unattended --replace
-
-  ### ─── 6. INSTALL & START SYSTEMD SERVICE ───────────────────
-  cd ${{RUNNER_HOME}}
-  sudo ./svc.sh install runner
-  sudo systemctl enable --now "actions.runner.${{GH_OWNER}}-${{GH_REPO}}.${{RUNNER_NAME}}.service"
+  sudo useradd --system --create-home --shell /bin/bash "${RUNNER_USER}"
+  sudo mkdir -p "${RUNNER_HOME}"
+  sudo curl -Ls -o "${RUNNER_HOME}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" \
+      "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz"
+  sudo tar -xzf "${RUNNER_HOME}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" -C "${RUNNER_HOME}"
+  sudo chown -R "${RUNNER_USER}:${RUNNER_USER}" "${RUNNER_HOME}"
+  sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \\
+    --url "https://github.com/{vars_json['github_account']}" \\
+    --token "{vars_json['github_runner_token']}" \\
+    --name "{ghrunner_instance_name}" \\
+    --labels "{ghrunner_instance_name}"
+  sudo "${{RUNNER_HOME}}/svc.sh" install "${{RUNNER_USER}}"
+  sudo "${{RUNNER_HOME}}/svc.sh" start
   """
-
-  vars_json['project_environment']
 
   if ghrunner_instance_id:
       print("EC2 ghrunner exists, skipping")
@@ -409,7 +408,7 @@ def main():
           "t4g.nano",
           "ami-0cd0767d8ed6ad0a9",
           keypair_id,
-          subnet_public_ids[0],
+          subnet_private_ids[0],
           [sg_ghrunner_id],
           ghrunner_instance_userdata
       )
