@@ -357,7 +357,7 @@ def main():
   ghrunner_instance_id   = get_instance_id_by_name(ec2, ghrunner_instance_name)
   ghrunner_instance_userdata = f"""#!/bin/bash
   sudo yum update -y
-  sudo yum install -y wget git unzip tar gzip jq glibc libgcc libstdc++ openssl-libs krb5-libs zlib libicu libcurl
+  sudo yum install -y wget git unzip tar gzip jq glibc libgcc libstdc++ openssl-libs krb5-libs zlib libicu
 
   # Python
 
