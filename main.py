@@ -357,7 +357,7 @@ def main():
   ghrunner_instance_id   = get_instance_id_by_name(ec2, ghrunner_instance_name)
   ghrunner_instance_userdata = f"""#!/bin/bash
   sudo yum update -y
-  sudo yum install -y wget git curl unzip tar gzip jq glibc libgcc libstdc++ openssl-libs krb5-libs zlib libicu libcurl
+  sudo yum install -y wget git unzip tar gzip jq glibc libgcc libstdc++ openssl-libs krb5-libs zlib libicu libcurl
 
   # Python
 
@@ -378,6 +378,7 @@ def main():
     "https://releases.hashicorp.com/terraform/${{TERRAFORM_VERSION}}/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip"
   unzip -q /tmp/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip -d /tmp
   sudo mv /tmp/terraform /usr/local/bin/
+  sudo rm /tmp/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
 
 
   # Terragrunt
@@ -386,7 +387,7 @@ def main():
     "https://github.com/gruntwork-io/terragrunt/releases/download/${{TG_VERSION}}/terragrunt_linux_arm64"
   sudo mv /tmp/terragrunt_linux_arm64 /usr/local/bin/terragrunt
   sudo chmod +x /usr/local/bin/terragrunt
-
+  sudo rm /tmp/terragrunt_linux_arm64
 
   # Ansible
   sudo yum install -y ansible
@@ -395,6 +396,7 @@ def main():
   curl -s -o /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
   unzip -q /tmp/awscliv2.zip -d /tmp
   sudo /tmp/aws/install
+  sudo rm /tmp/awscliv2.zip
 
   # GitHub Actions Runner
   RUNNER_USER="runner"
