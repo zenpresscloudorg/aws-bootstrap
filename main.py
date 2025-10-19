@@ -357,7 +357,14 @@ def main():
   ghrunner_instance_id   = get_instance_id_by_name(ec2, ghrunner_instance_name)
   ghrunner_instance_userdata = f"""#!/bin/bash
   sudo yum update -y
-  sudo yum install -y wget git unzip tar gzip jq glibc libgcc libstdc++ openssl-libs krb5-libs zlib libicu
+  sudo yum install -y dnf-plugins-core wget git unzip tar gzip jq glibc libgcc libstdc++ openssl-libs krb5-libs zlib libicu
+
+  # Github
+
+  sudo yum config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+  sudo yum update -y
+  sudo yum install -y gh
+
 
   # Python
 
