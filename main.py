@@ -374,29 +374,28 @@ def main():
 
   # Terraform
   TERRAFORM_VERSION=$(curl -s https://api.releases.hashicorp.com/v1/releases/terraform/latest | jq -r .version)
-  wget -q -O /tmp/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip \
+  wget -q -O terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip \
     "https://releases.hashicorp.com/terraform/${{TERRAFORM_VERSION}}/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip"
-  unzip -q /tmp/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip -d /tmp
-  sudo mv /tmp/terraform /usr/local/bin/
-  sudo rm /tmp/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
-
+  unzip -q terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
+  sudo mv terraform /usr/local/bin/
+  sudo rm -f terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
 
   # Terragrunt
   TG_VERSION=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest | jq -r .tag_name)
-  wget -q -O /tmp/terragrunt_linux_arm64 \
-    "https://github.com/gruntwork-io/terragrunt/releases/download/${{TG_VERSION}}/terragrunt_linux_arm64"
-  sudo mv /tmp/terragrunt_linux_arm64 /usr/local/bin/terragrunt
+  wget -q "https://github.com/gruntwork-io/terragrunt/releases/download/${{TG_VERSION}}/terragrunt_linux_arm64" -O terragrunt_linux_arm64
+  sudo mv terragrunt_linux_arm64 /usr/local/bin/terragrunt
   sudo chmod +x /usr/local/bin/terragrunt
-  sudo rm /tmp/terragrunt_linux_arm64
+  rm -f terragrunt_linux_arm64
+
 
   # Ansible
   sudo yum install -y ansible
 
   # AWS CLI
-  curl -s -o /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
-  unzip -q /tmp/awscliv2.zip -d /tmp
-  sudo /tmp/aws/install
-  sudo rm /tmp/awscliv2.zip
+  curl -s -o awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
+  unzip -q awscliv2.zip
+  sudo ./aws/install
+  sudo rm -rf aws awscliv2.zip
 
   # GitHub Actions Runner
   RUNNER_USER="runner"
