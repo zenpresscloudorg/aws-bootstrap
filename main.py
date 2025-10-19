@@ -24,48 +24,6 @@ def main():
   account_id = sts.get_caller_identity()["Account"]
   account_region = session.region_name
 
-  # S3
-
-  s3_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-s3-tf"
-  s3_policy = {
-      "Version": "2012-10-17",
-      "Statement": [
-          {
-              "Sid": "AllowOnlySpecificRole",
-              "Effect": "Allow",
-              "Principal": {
-                  "AWS": role_arn
-              },
-              "Action": "s3:*",
-              "Resource": [
-                  f"arn:aws:s3:::{s3_name}",
-                  f"arn:aws:s3:::{s3_name}/*"
-              ]
-          },
-          {
-              "Sid": "DenyAllOtherPrincipals",
-              "Effect": "Deny",
-              "Principal": "*",
-              "Action": "s3:*",
-              "Resource": [
-                  f"arn:aws:s3:::{s3_name}",
-                  f"arn:aws:s3:::{s3_name}/*"
-              ],
-              "Condition": {
-                  "StringNotEquals": {
-                      "aws:PrincipalArn": role_arn
-                  }
-              }
-          }
-      ]
-  }
-
-  if check_s3_exists(s3, s3_name):
-      print(f"S3 bucket already exists, skipping")
-  else:
-      create_s3(s3, s3_name, s3_policy, account_region)
-      print(f"S3 bucket created, Name {s3_name}")
-
   # KeyPair
 
   keypair_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-keypair-main"
@@ -326,7 +284,51 @@ def main():
       attach_policy_to_role(iam, role_name, policy_arn)
       print("IAM Policy created and attached to Role")
 
+  # S3
+
+  s3_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-s3-tf"
+  s3_policy = {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Sid": "AllowOnlySpecificRole",
+              "Effect": "Allow",
+              "Principal": {
+                  "AWS": role_arn
+              },
+              "Action": "s3:*",
+              "Resource": [
+                  f"arn:aws:s3:::{s3_name}",
+                  f"arn:aws:s3:::{s3_name}/*"
+              ]
+          },
+          {
+              "Sid": "DenyAllOtherPrincipals",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                  f"arn:aws:s3:::{s3_name}",
+                  f"arn:aws:s3:::{s3_name}/*"
+              ],
+              "Condition": {
+                  "StringNotEquals": {
+                      "aws:PrincipalArn": role_arn
+                  }
+              }
+          }
+      ]
+  }
+
+  if check_s3_exists(s3, s3_name):
+      print(f"S3 bucket already exists, skipping")
+  else:
+      create_s3(s3, s3_name, s3_policy, account_region)
+      print(f"S3 bucket created, Name {s3_name}")
+
+
   # Instance profile
+
   profile_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-instanceprofile-runner"
   profile_arn = get_instance_profile_arn(iam, profile_name)
   
