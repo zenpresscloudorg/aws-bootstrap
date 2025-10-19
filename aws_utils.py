@@ -11,27 +11,6 @@ def get_available_azs(ec2):
         Filters=[{"Name": "state", "Values": ["available"]}]
     )
     return [az["ZoneName"] for az in response["AvailabilityZones"]]
-
-def check_oidc_provider_exists(iam, url):
-    """
-    Returns True if the GitHub OIDC provider for GitHub Actions exists, False otherwise.
-    """
-    for p in iam.list_open_id_connect_providers().get("OpenIDConnectProviderList", []):
-        arn = p["Arn"]
-        response = iam.get_open_id_connect_provider(OpenIDConnectProviderArn=arn)
-        oidc_url = response.get("Url", "")
-        if oidc_url == url:
-            return True
-    return False
-
-
-def create_oidc_provider(iam, url, clientid, oidc_thumbprint):
-    """
-    Creates the GitHub OIDC provider in the AWS account and returns its ARN.
-    """
-    iam.create_open_id_connect_provider(
-        Url=url, ClientIDList=[clientid], ThumbprintList=[oidc_thumbprint]
-    )
     
 def get_iam_role_arn(iam, role_name):
     try:
@@ -105,6 +84,32 @@ def attach_policy_to_role(iam, role_name, policy_arn):
         RoleName=role_name,
         PolicyArn=policy_arn
     )
+
+def get_instance_profile_arn(iam, profile_name):
+    """
+    Returns the ARN of an existing IAM instance profile given its name.
+    """
+    resp = iam.get_instance_profile(InstanceProfileName=profile_name)
+    return resp["InstanceProfile"]["Arn"]
+
+def create_iam_instance_profile(iam, profile_name):
+    """
+    Creates an IAM instance profile with the specified name.
+    Returns the created instance profile's ARN.
+    """
+    kwargs = {"InstanceProfileName": profile_name}
+    resp = iam.create_instance_profile(**kwargs)
+    return resp["InstanceProfile"]["InstanceProfileName"]
+
+def add_role_to_instance_profile(iam, profile_name, role_name):
+    """
+    Adds an IAM role to an existing instance profile.
+    """
+    kwargs = {
+        "InstanceProfileName": profile_name,
+        "RoleName": role_name
+    }
+    iam.add_role_to_instance_profile(**kwargs)
 
 def check_keypair_exists(ec2, name):
     """
@@ -448,6 +453,19 @@ def create_ec2_instance(ec2, instance_name, ebs_name, instance_type,ami_id, key_
     waiter = ec2.get_waiter('instance_running')
     waiter.wait(InstanceIds=[instance_id])
     return instance_id
+
+def associate_iam_instance_profile(ec2, instance_id, profile_name):
+    """
+    Associates an existing IAM instance profile to a running EC2 instance.
+    Returns the association ID.
+    """
+    kwargs = {
+        "InstanceId": instance_id,
+        "IamInstanceProfile": {"Name": profile_name}
+    }
+    resp = ec2.associate_iam_instance_profile(**kwargs)
+    return resp["IamInstanceProfileAssociation"]["AssociationId"]
+
 
 def disable_source_dest_check(ec2, instance_id):
     """

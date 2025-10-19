@@ -24,87 +24,6 @@ def main():
   account_id = sts.get_caller_identity()["Account"]
   account_region = session.region_name
 
-  # Common vars
-
-  name_structure = f"{vars_json['project_name']}-{vars_json['project_environment']}-bootstrap-RESOURCE-oidc"
-
-  # Common vars
-  
-  name_structure = "{project}-{env}-{resource}"
-
-  # OIDC Provider
-
-  oidc_url = "token.actions.githubusercontent.com"
-  oidc_client_id = "sts.amazonaws.com"
-  oidc_thumbprint = "6938fd4d98bab03faadb97b34396831e3780aea1"
-
-  if check_oidc_provider_exists(iam, oidc_url):
-      print("OIDC provider already exists, skipping")
-  else:
-      create_oidc_provider(iam, f"https://{oidc_url}", oidc_client_id, oidc_thumbprint)
-      print(f"OIDC provider created")
-
-  # Role
-
-  role_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-bootstrap-role-oidc"
-  role_arn = get_iam_role_arn(iam, role_name)
-  trust_policy = {
-      "Version": "2012-10-17",
-      "Statement": [
-          {
-              "Effect": "Allow",
-              "Principal": {
-                  "Federated": f"arn:aws:iam::{account_id}:oidc-provider/{oidc_url}"
-              },
-              "Action": "sts:AssumeRoleWithWebIdentity",
-              "Condition": {
-                  "StringLike": {
-                      "token.actions.githubusercontent.com:sub": f"repo:{vars_json['github_account']}/{vars_json['github_repo']}:*"
-                  }
-              }
-          }
-      ]
-  }
-
-  if role_arn:
-      print("IAM role already exists, skipping")
-  else:
-      role_arn = create_iam_role(iam, role_name, trust_policy)
-      print(f"IAM role created, Name {role_name}")
-
-  # Role policy
-
-  policy_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-policy-oidc"
-  policy_arn = get_iam_policy_arn(iam, policy_name)
-  policy_document = {
-      "Version": "2012-10-17",
-      "Statement": [
-          {
-              "Effect": "Allow",
-              "Action": "s3:*",
-              "Resource": [
-                  f"arn:aws:s3:::{vars_json['project_name']}-{vars_json['project_environment']}-s3-*",
-                  f"arn:aws:s3:::{vars_json['project_name']}-{vars_json['project_environment']}-s3-*/*"
-              ]
-          },
-          {
-              "Effect": "Allow",
-              "Action": "dynamodb:*",
-              "Resource": [
-                  f"arn:aws:dynamodb:{account_region}:*:table/{vars_json['project_name']}-{vars_json['project_environment']}-ddb-*"
-              ]
-          }
-      ]
-  }
-
-  if policy_arn:
-      print("IAM Policy already exists, updating...")
-      update_iam_policy(iam, policy_arn, policy_document)
-  else:
-      policy_arn = create_iam_policy(iam, policy_name, policy_document)
-      attach_policy_to_role(iam, role_name, policy_arn)
-      print("IAM Policy created and attached to Role")
-
   # S3
 
   s3_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-s3-tf"
@@ -351,7 +270,75 @@ def main():
           zone_id = create_hosted_zone(route53, zone_name, is_private=True, vpc_id=vpc_id, vpc_region=account_region)
           print(f"Private Hosted zone Created '{zone_name}'")
 
+  # Role Runner
+
+  role_name = f"{vars_json['project_name']}-{vars_json['project_environment']}-bootstrap-role-runner"
+  role_arn = get_iam_role_arn(iam, role_name)
+  trust_policy = {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "Service": "ec2.amazonaws.com"
+        },
+        "Action": "sts:AssumeRole"
+      }
+    ]
+  }
+
+  if role_arn:
+      print("IAM role already exists, skipping")
+  else:
+      role_arn = create_iam_role(iam, role_name, trust_policy)
+      print(f"IAM role created, Name {role_name}")
+
+  # Role policy Runner
+
+  policy_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-policy-runner"
+  policy_arn = get_iam_policy_arn(iam, policy_name)
+  policy_document = {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Effect": "Allow",
+              "Action": "s3:*",
+              "Resource": [
+                  f"arn:aws:s3:::{vars_json['project_name']}-{vars_json['project_environment']}-s3-*",
+                  f"arn:aws:s3:::{vars_json['project_name']}-{vars_json['project_environment']}-s3-*/*"
+              ]
+          },
+          {
+              "Effect": "Allow",
+              "Action": "dynamodb:*",
+              "Resource": [
+                  f"arn:aws:dynamodb:{account_region}:*:table/{vars_json['project_name']}-{vars_json['project_environment']}-ddb-*"
+              ]
+          }
+      ]
+  }
+
+  if policy_arn:
+      print("IAM Policy already exists, updating...")
+      update_iam_policy(iam, policy_arn, policy_document)
+  else:
+      policy_arn = create_iam_policy(iam, policy_name, policy_document)
+      attach_policy_to_role(iam, role_name, policy_arn)
+      print("IAM Policy created and attached to Role")
+
+  # Instance profile
+  profile_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-instanceprofile-runner"
+  profile_arn = get_instance_profile_arn(iam, profile_name)
+  
+  if profile_name:
+      print("IAM Profile already exists")
+  else:
+      profile_ghrunner = create_iam_instance_profile(iam, profile_name)
+      add_role_to_instance_profile(iam, profile_ghrunner, role_arn)
+      print("IAM Profile created and attached to Role")
+
   # Github runner
+
   ghrunner_instance_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ec2-ghrunner"
   ghrunner_ebs_name      = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-ghrunner"
   ghrunner_instance_id   = get_instance_id_by_name(ec2, ghrunner_instance_name)
@@ -421,7 +408,7 @@ def main():
   sudo chown -R "${{RUNNER_USER}}:${{RUNNER_USER}}" "${{RUNNER_HOME}}"
   sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \
     --unattended \
-    --url "https://github.com/{vars_json['github_account']}" \
+    --url "https://github.com/{vars_json['github_org']}" \
     --token "{vars_json['github_runner_token']}" \
     --name "{ghrunner_instance_name}" \
     --labels "{ghrunner_instance_name}"
@@ -443,8 +430,8 @@ def main():
           [sg_ghrunner_id],
           ghrunner_instance_userdata
       )
-      print(f"EC2 ghrunner created, Name {ghrunner_instance_name}")
-
+      associate_iam_instance_profile(ec2, ghrunner_instance_id, profile_ghrunner)
+      print(f"EC2 ghrunner created and attached to instance profile. Name {ghrunner_instance_name}")
 
   # SES
 

@@ -7,7 +7,6 @@
    "vpc_subnet_private_tskey": "demo",
    "hostedzones_public": ["demo.demo"],
    "hostedzones_private": ["demo.demo"],
-   "github_account": "demo.demo",
-   "github_repo": "demo.demo",
+   "github_org": "demo.demo",
    "github_runner_token": "demo"
 }

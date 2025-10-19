@@ -29,6 +29,7 @@ git clone https://github.com/zenpresscloudorg/aws-bootstrap
     - vpc_ipv6_enable must be true or false
     - "hostedzones_public" and "hostedzones_private" arrays can be empty
     - vpc_subnet_private_enable must be true or false. If is true You need a tailscale api key to access private subnet resources
+    - github_org
     - github_runner_token
 
 ### 4) Run
