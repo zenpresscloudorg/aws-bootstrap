@@ -397,6 +397,8 @@ def main():
   sudo systemctl enable --now "actions.runner.${{GH_OWNER}}-${{GH_REPO}}.${{RUNNER_NAME}}.service"
   """
 
+  vars_json['project_environment']
+
   if ghrunner_instance_id:
       print("EC2 ghrunner exists, skipping")
   else:
