@@ -395,7 +395,7 @@ def main():
       "https://github.com/actions/runner/releases/download/v${{RUNNER_VERSION}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
   sudo tar -xzf "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" -C "${{RUNNER_HOME}}"
   sudo chown -R "${{RUNNER_USER}}:${{RUNNER_USER}}" "${{RUNNER_HOME}}"
-  sudo "${RUNNER_HOME}/bin/installdependencies.sh"
+  sudo "${{RUNNER_HOME}}/bin/installdependencies.sh"
   sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \
     --url "https://github.com/{vars_json['github_account']}" \
     --token "{vars_json['github_runner_token']}" \
