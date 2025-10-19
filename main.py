@@ -385,8 +385,6 @@ def main():
   wget -q "https://github.com/gruntwork-io/terragrunt/releases/download/${{TG_VERSION}}/terragrunt_linux_arm64" -O terragrunt_linux_arm64
   sudo mv terragrunt_linux_arm64 /usr/local/bin/terragrunt
   sudo chmod +x /usr/local/bin/terragrunt
-  rm -f terragrunt_linux_arm64
-
 
   # Ansible
   sudo yum install -y ansible
@@ -409,14 +407,17 @@ def main():
   sudo curl -Ls -o "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" \
     "https://github.com/actions/runner/releases/download/v${{RUNNER_VERSION}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
   sudo tar -xzf "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" -C "${{RUNNER_HOME}}" || echo "Error extracting runner" >&2; exit 1
+  sudo rm -f "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
   sudo chown -R "${{RUNNER_USER}}:${{RUNNER_USER}}" "${{RUNNER_HOME}}"
-  sudo -u "${{RUNNER_USER}}" bash -c "${{RUNNER_HOME}}/config.sh \
-    --url https://github.com/{vars_json['github_account']} \
-    --token {vars_json['github_runner_token']} \
-    --name {ghrunner_instance_name} \
-    --labels {ghrunner_instance_name}"
+  sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \
+    --unattended \
+    --url "https://github.com/${{vars_json['github_account']}}" \
+    --token "${{vars_json['github_runner_token']}}" \
+    --name "${{ghrunner_instance_name}}" \
+    --labels "${{ghrunner_instance_name}}"
   sudo bash "${{RUNNER_HOME}}/svc.sh" install "${{RUNNER_USER}}"
   sudo bash "${{RUNNER_HOME}}/svc.sh" start
+
   """
 
   if ghrunner_instance_id:
