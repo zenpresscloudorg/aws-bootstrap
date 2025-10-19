@@ -210,7 +210,7 @@ def main():
 
   sg_test_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-test"
   sg_natgw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-natgw"
-  sg_ghrunner_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-natgw"
+  sg_ghrunner_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-runnerid"
   sg_test_id = get_sg_id(ec2, vpc_id, sg_test_name)
   sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
   sg_ghrunner_id = get_sg_id(ec2, vpc_id, sg_ghrunner_name)
