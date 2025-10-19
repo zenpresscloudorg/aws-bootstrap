@@ -414,13 +414,12 @@ def main():
   sudo chown -R "${{RUNNER_USER}}:${{RUNNER_USER}}" "${{RUNNER_HOME}}"
   sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \
     --unattended \
-    --url "https://github.com/${{vars_json['github_account']}}" \
-    --token "${{vars_json['github_runner_token']}}" \
-    --name "${{ghrunner_instance_name}}" \
-    --labels "${{ghrunner_instance_name}}"
+    --url "https://github.com/{vars_json['github_account']}" \
+    --token "{vars_json['github_runner_token']}" \
+    --name "{ghrunner_instance_name}" \
+    --labels "{ghrunner_instance_name}"
   sudo bash "${{RUNNER_HOME}}/svc.sh" install "${{RUNNER_USER}}"
   sudo bash "${{RUNNER_HOME}}/svc.sh" start
-
   """
 
   if ghrunner_instance_id:
