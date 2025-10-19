@@ -373,28 +373,28 @@ def main():
   # Ansible
   sudo yum install -y ansible
 
-  # AWSCli
+  # AWS CLI
   curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
   unzip awscliv2.zip
   sudo ./aws/install
   rm -rf aws awscliv2.zip
 
-  # Runner
+  # GitHub Actions Runner
   RUNNER_USER="runner"
   ARCH=arm64
   RUNNER_VERSION="$(curl -s https://api.github.com/repos/actions/runner/releases/latest | jq -r .tag_name | tr -d 'v')"
   RUNNER_HOME="/opt/actions-runner"
 
-  sudo useradd --system --create-home --shell /bin/bash "${RUNNER_USER}"
-  sudo mkdir -p "${RUNNER_HOME}"
-  sudo curl -Ls -o "${RUNNER_HOME}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" \
-      "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz"
-  sudo tar -xzf "${RUNNER_HOME}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" -C "${RUNNER_HOME}"
-  sudo chown -R "${RUNNER_USER}:${RUNNER_USER}" "${RUNNER_HOME}"
-  sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \\
-    --url "https://github.com/{vars_json['github_account']}" \\
-    --token "{vars_json['github_runner_token']}" \\
-    --name "{ghrunner_instance_name}" \\
+  sudo useradd --system --create-home --shell /bin/bash "${{RUNNER_USER}}"
+  sudo mkdir -p "${{RUNNER_HOME}}"
+  sudo curl -Ls -o "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" \
+      "https://github.com/actions/runner/releases/download/v${{RUNNER_VERSION}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
+  sudo tar -xzf "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" -C "${{RUNNER_HOME}}"
+  sudo chown -R "${{RUNNER_USER}}:${{RUNNER_USER}}" "${{RUNNER_HOME}}"
+  sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \
+    --url "https://github.com/{vars_json['github_account']}" \
+    --token "{vars_json['github_runner_token']}" \
+    --name "{ghrunner_instance_name}" \
     --labels "{ghrunner_instance_name}"
   sudo "${{RUNNER_HOME}}/svc.sh" install "${{RUNNER_USER}}"
   sudo "${{RUNNER_HOME}}/svc.sh" start
