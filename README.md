@@ -11,6 +11,7 @@
     - Tailscale details: Adds machine to Taiscale, added subnet to access nat private instances you need to approbe subnets
     - Nat details: NAT forwarded to allow outbound internet traffic from nat subnet
 - Creates one all open security group (testing purposes)
+- Creates Github runner
 
 # Usage instructions
 
