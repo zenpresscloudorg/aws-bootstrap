@@ -356,11 +356,12 @@ def main():
   sudo yum install -y wget git curl unzip tar gzip jq yq python3 python3-pip
 
   # Terraform
-  TERRAFORM_VERSION=$(curl -sL https://releases.hashicorp.com/terraform/ | grep -Eo 'terraform_[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d_ -f2)
-  wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_arm64.zip
-  unzip terraform_${TERRAFORM_VERSION}_linux_arm64.zip
+  TERRAFORM_VERSION=$(curl -sL https://releases.hashicorp.com/terraform/ | \
+    grep -Eo 'terraform_[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d_ -f2)
+  wget https://releases.hashicorp.com/terraform/${{TERRAFORM_VERSION}}/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
+  unzip terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
   sudo mv terraform /usr/local/bin/
-  rm terraform_${TERRAFORM_VERSION}_linux_arm64.zip
+  rm terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
 
   # Terragrunt
   TG_VERSION=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest | grep tag_name | cut -d '"' -f 4)
