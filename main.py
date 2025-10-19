@@ -364,8 +364,9 @@ def main():
   rm terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
 
   # Terragrunt
-  TG_VERSION=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest | grep tag_name | cut -d '"' -f 4)
-  wget https://github.com/gruntwork-io/terragrunt/releases/download/${TG_VERSION}/terragrunt_linux_arm64
+  TG_VERSION=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest | \
+    jq -r .tag_name)
+  wget https://github.com/gruntwork-io/terragrunt/releases/download/${{TG_VERSION}}/terragrunt_linux_arm64
   sudo mv terragrunt_linux_arm64 /usr/local/bin/terragrunt
   sudo chmod +x /usr/local/bin/terragrunt
 
