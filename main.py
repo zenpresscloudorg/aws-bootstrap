@@ -210,8 +210,10 @@ def main():
 
   sg_test_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-test"
   sg_natgw_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-natgw"
+  sg_ghrunner_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-sg-natgw"
   sg_test_id = get_sg_id(ec2, vpc_id, sg_test_name)
   sg_natgw_id = get_sg_id(ec2, vpc_id, sg_natgw_name)
+  sg_ghrunner_id = get_sg_id(ec2, vpc_id, sg_ghrunner_name)
 
   if sg_test_id:
       print(f"SG test exists, skipping")
@@ -224,6 +226,12 @@ def main():
       print(f"SG natgw exists, skipping")
   else:
       sg_natgw_id = create_sg(ec2, vpc_id, sg_natgw_name, "ec2-natgw")
+      print(f"SG natgw created, Name {sg_test_name}")
+
+  if sg_ghrunner_id:
+      print(f"SG natgw exists, skipping")
+  else:
+      sg_ghrunner_id = create_sg(ec2, vpc_id, sg_ghrunner_name, "ec2-natgw")
       print(f"SG natgw created, Name {sg_test_name}")
 
   # IGW
@@ -289,7 +297,7 @@ def main():
               "ami-0cd0767d8ed6ad0a9",
               keypair_id,
               subnet_public_ids[0],
-              [sg_natgw_id],  # <-- debe ser lista
+              [sg_natgw_id],
               natgw_instance_userdata
           )
           disable_source_dest_check(ec2, natgw_instance_id)
@@ -338,6 +346,73 @@ def main():
       else:
           zone_id = create_hosted_zone(route53, zone_name, is_private=True, vpc_id=vpc_id, vpc_region=account_region)
           print(f"Private Hosted zone Created '{zone_name}'")
+
+  # Github runner
+  ghrunner_instance_name = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ec2-ghrunner"
+  ghrunner_ebs_name      = f"{vars_json['project_name']}-bootstrap-{vars_json['project_environment']}-ebs-ghrunner"
+  ghrunner_instance_id   = get_instance_id_by_name(ec2, ghrunner_instance_name)
+  ghrunner_instance_userdata = f"""#!/bin/bash
+
+  ### 1. Variables de configuración
+
+  ### ─── 1. CONFIGURE THESE VARIABLES ─────────────────────────
+  GH_OWNER="your-org"          # Change to your organisation/user
+  GH_REPO="your-repo"          # Repository name
+  RUNNER_TOKEN="YOUR_TOKEN"    # Registration token (24 h validity)
+  RUNNER_NAME="$(hostname)"
+  RUNNER_LABELS="al2023,arm64"
+
+  ### ─── 2. UPDATE OS & INSTALL DEPENDENCIES ──────────────────
+  sudo yum update -y
+  sudo yum install -y curl tar gzip jq
+
+  ### ─── 3. CREATE DEDICATED SERVICE USER ─────────────────────
+  sudo useradd --system --create-home --shell /bin/bash runner
+
+  ### ─── 4. DOWNLOAD LATEST RUNNER BINARY (arm64) ─────────────
+  ARCH=arm64
+  RUNNER_VERSION="$(curl -s https://api.github.com/repos/actions/runner/releases/latest | jq -r .tag_name | tr -d 'v')"
+  RUNNER_HOME="/opt/actions-runner"
+
+  sudo mkdir -p ${{RUNNER_HOME}}
+  cd ${{RUNNER_HOME}}
+  sudo curl -Ls -o "actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" \
+      "https://github.com/actions/runner/releases/download/v${{RUNNER_VERSION}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
+  sudo tar -xzf "actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
+  sudo chown -R runner:runner ${{RUNNER_HOME}}
+
+  ### ─── 5. INSTALL LIB DEPENDENCIES & CONFIGURE ──────────────
+  sudo -u runner ./bin/installdependencies.sh
+
+  sudo -u runner ./config.sh \
+    --url "https://github.com/${{GH_OWNER}}/${{GH_REPO}}" \
+    --token "${{RUNNER_TOKEN}}" \
+    --name "${{RUNNER_NAME}}" \
+    --labels "${{RUNNER_LABELS}}" \
+    --unattended --replace
+
+  ### ─── 6. INSTALL & START SYSTEMD SERVICE ───────────────────
+  cd ${{RUNNER_HOME}}
+  sudo ./svc.sh install runner
+  sudo systemctl enable --now "actions.runner.${{GH_OWNER}}-${{GH_REPO}}.${{RUNNER_NAME}}.service"
+  """
+
+  if ghrunner_instance_id:
+      print("EC2 ghrunner exists, skipping")
+  else:
+      ghrunner_instance_id = create_ec2_instance(
+          ec2,
+          ghrunner_instance_name,
+          ghrunner_ebs_name,
+          "t4g.nano",
+          "ami-0cd0767d8ed6ad0a9",
+          keypair_id,
+          subnet_public_ids[0],
+          [sg_ghrunner_id],
+          ghrunner_instance_userdata
+      )
+      print(f"EC2 ghrunner created, Name {ghrunner_instance_name}")
+
 
   # SES
 

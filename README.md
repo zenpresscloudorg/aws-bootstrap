@@ -19,7 +19,7 @@
 ### 2) Clone repository
 
 ```bash
-git clone https://github.com/edup92/aws-bootstrap.git
+git clone https://github.com/zenpresscloudorg/aws-bootstrap
 ```
 
 ### 3) Modify vars.json file. 

@@ -8,5 +8,6 @@
    "hostedzones_public": ["demo.demo"],
    "hostedzones_private": ["demo.demo"],
    "github_account": "demo.demo",
-   "github_repo": "demo.demo"
+   "github_repo": "demo.demo",
+   "github_runner_tokem": "demo"
 }
