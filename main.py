@@ -369,31 +369,32 @@ def main():
 
   # Yq
 
-  sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_arm64 -O /usr/local/bin/yq
+  sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_arm64 -q -O /usr/local/bin/yq
   sudo chmod +x /usr/local/bin/yq
 
   # Terraform
   TERRAFORM_VERSION=$(curl -s https://api.releases.hashicorp.com/v1/releases/terraform/latest | jq -r .version)
-  wget "https://releases.hashicorp.com/terraform/${{TERRAFORM_VERSION}}/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip"
-  unzip terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
-  sudo mv terraform /usr/local/bin/
-  rm terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip
+  wget -q -O /tmp/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip \
+    "https://releases.hashicorp.com/terraform/${{TERRAFORM_VERSION}}/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip"
+  unzip -q /tmp/terraform_${{TERRAFORM_VERSION}}_linux_arm64.zip -d /tmp
+  sudo mv /tmp/terraform /usr/local/bin/
+
 
   # Terragrunt
-  TG_VERSION=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest | \
-    jq -r .tag_name)
-  wget https://github.com/gruntwork-io/terragrunt/releases/download/${{TG_VERSION}}/terragrunt_linux_arm64
-  sudo mv terragrunt_linux_arm64 /usr/local/bin/terragrunt
+  TG_VERSION=$(curl -s https://api.github.com/repos/gruntwork-io/terragrunt/releases/latest | jq -r .tag_name)
+  wget -q -O /tmp/terragrunt_linux_arm64 \
+    "https://github.com/gruntwork-io/terragrunt/releases/download/${{TG_VERSION}}/terragrunt_linux_arm64"
+  sudo mv /tmp/terragrunt_linux_arm64 /usr/local/bin/terragrunt
   sudo chmod +x /usr/local/bin/terragrunt
+
 
   # Ansible
   sudo yum install -y ansible
 
   # AWS CLI
-  curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
-  unzip -q awscliv2.zip
-  sudo ./aws/install
-  rm -rf aws awscliv2.zip
+  curl -s -o /tmp/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
+  unzip -q /tmp/awscliv2.zip -d /tmp
+  sudo /tmp/aws/install
 
   # GitHub Actions Runner
   RUNNER_USER="runner"
