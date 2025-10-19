@@ -357,7 +357,15 @@ def main():
   ghrunner_instance_id   = get_instance_id_by_name(ec2, ghrunner_instance_name)
   ghrunner_instance_userdata = f"""#!/bin/bash
   sudo yum update -y
-  sudo yum install -y wget git curl unzip tar gzip jq python3 python3-pip
+  sudo yum install -y wget git curl unzip tar gzip jq glibc libgcc libstdc++ openssl-libs krb5-libs zlib libicu libcurl
+
+  # Python
+
+  sudo yum install -y python3
+
+  # Nodejs
+
+  sudo yum install -y nodejs npm
 
   # Yq
 
@@ -383,7 +391,7 @@ def main():
 
   # AWS CLI
   curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
-  unzip awscliv2.zip
+  unzip -q awscliv2.zip
   sudo ./aws/install
   rm -rf aws awscliv2.zip
 
@@ -399,7 +407,6 @@ def main():
       "https://github.com/actions/runner/releases/download/v${{RUNNER_VERSION}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz"
   sudo tar -xzf "${{RUNNER_HOME}}/actions-runner-linux-${{ARCH}}-${{RUNNER_VERSION}}.tar.gz" -C "${{RUNNER_HOME}}"
   sudo chown -R "${{RUNNER_USER}}:${{RUNNER_USER}}" "${{RUNNER_HOME}}"
-  sudo "${{RUNNER_HOME}}/bin/installdependencies.sh"
   sudo -u "${{RUNNER_USER}}" "${{RUNNER_HOME}}/config.sh" \
     --url "https://github.com/{vars_json['github_account']}" \
     --token "{vars_json['github_runner_token']}" \
