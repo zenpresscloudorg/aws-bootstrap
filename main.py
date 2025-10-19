@@ -425,8 +425,8 @@ def main():
     --token "{vars_json['github_runner_token']}" \
     --name "{ghrunner_instance_name}" \
     --labels "{ghrunner_instance_name}"
-  sudo bash "${{RUNNER_HOME}}/svc.sh" install "${{RUNNER_USER}}"
-  sudo bash "${{RUNNER_HOME}}/svc.sh" start
+  sudo bash "${{RUNNER_HOME}}/svc.sh" install "${{RUNNER_USER}}" --chdir "${{RUNNER_HOME}}"
+  sudo bash "${{RUNNER_HOME}}/svc.sh" start --chdir "${{RUNNER_HOME}}"
   """
 
   if ghrunner_instance_id:
