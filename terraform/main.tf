@@ -28,3 +28,93 @@ resource "aws_vpc" "main" {
     Name = "${var.project_name}-vpc"
   }
 }
+
+# Subnets
+
+resource "aws_subnet" "public_subnet" {
+  for_each = { for idx, az in local.azs : az => {
+    cidr_block = local.public_subnets_cidr[idx]
+    name       = local.public_subnet_names[idx]
+  } }
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = each.value.cidr_block
+  availability_zone       = each.key
+  map_public_ip_on_launch = true
+  tags = {
+    Name = each.value.name
+  }
+}
+
+resource "aws_subnet" "private_subnet" {
+  for_each = { for idx, az in local.azs : az => {
+    cidr_block = local.private_subnets_cidr[idx]
+    name       = local.private_subnet_names[idx]
+  } }
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value.cidr_block
+  availability_zone = each.key
+  map_public_ip_on_launch = false
+  tags = {
+    Name = each.value.name
+  }
+}
+
+# Security groups
+
+resource "aws_security_group" "sg_test" {
+  name        = local.sg_test_name
+  description = "test"
+  vpc_id      = aws_vpc.main.id
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = local.sg_test_name
+  }
+}
+
+resource "aws_security_group" "sg_natgw" {
+  name        = local.sg_natgw_name
+  description = "ec2-natgw"
+  vpc_id      = aws_vpc.main.id
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = local.private_subnets_cidr
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = local.sg_natgw_name
+  }
+}
+
+resource "aws_security_group" "sg_ghrunner" {
+  name        = local.sg_ghrunner_name
+  description = "ec2-ghrunner"
+  vpc_id      = aws_vpc.main.id
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name = local.sg_ghrunner_name
+  }
+}
+

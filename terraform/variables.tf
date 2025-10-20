@@ -24,19 +24,12 @@ variable "vpc_ipv6_enable" {
   default     = true
 }
 
-variable "vpc_subnet_private_enable" {
-  description = "Habilitar subnets privadas"
-  type        = bool
-  default     = true
-}
-
 variable "vpc_subnet_private_tskey" {
   description = "Clave para identificar subnets privadas"
   type        = string
   default     = "demo"
 }
 
-# Variables de DNS
 variable "hostedzones_public" {
   description = "Lista de zonas DNS públicas"
   type        = list(string)
