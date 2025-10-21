@@ -23,7 +23,7 @@
 git clone https://github.com/zenpresscloudorg/aws-bootstrap
 ```
 
-### 3) Modify vars.json file. 
+### 4) Modify vars.json file. 
     Notes:
     - VPC CIDR must be /16
     - vpc_ipv6_enable must be true or false
@@ -32,8 +32,8 @@ git clone https://github.com/zenpresscloudorg/aws-bootstrap
     - github_org
     - github_runner_token
 
-### 4) Run
+### 5) Run runme.sh
 
 ```bash
-python3 ./aws-bootstrap/main.py
+chmod +x ./aws-bootstrap/runme.sh ; ./aws-bootstrap/runme.sh
 ```

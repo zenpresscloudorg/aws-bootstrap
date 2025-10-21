@@ -3,7 +3,6 @@
    "project_environment":"prod",
    "vpc_cidr": "10.0.0.0/16", 
    "vpc_ipv6_enable": true,
-   "vpc_subnet_private_enable": true,
    "vpc_subnet_private_tskey": "demo",
    "hostedzones_public": ["demo.demo"],
    "hostedzones_private": ["demo.demo"],

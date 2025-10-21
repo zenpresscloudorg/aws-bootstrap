@@ -8,5 +8,11 @@ locals {
   private_subnet_names = [for az in local.azs : "${var.project_name}-bootstrap-${var.project_environment}-subnet-priv-${az}"]
   sg_test_name    = "${var.project_name}-bootstrap-${var.project_environment}-sg-test"
   sg_natgw_name   = "${var.project_name}-bootstrap-${var.project_environment}-sg-natgw"
-  sg_ghrunner_name = "${var.project_name}-bootstrap-${var.project_environment}-sg-runnerid"
+  sg_ghrunner_name = "${var.project_name}-bootstrap-${var.project_environment}-sg-runnerid"  
+  igw_name = "${var.project_name}-bootstrap-${var.project_environment}-igw-main"
+  natgw_instance_name = "${var.project_name}-bootstrap-${var.project_environment}-ec2-natgw"
+  natgw_ebs_name      = "${var.project_name}-bootstrap-${var.project_environment}-ebs-natgw"
+  dnsmasq_servers     = join("", [for domain in var.hostedzones_private : "server=/${domain}/$ROUTE53_RESOLVER\n"])
+  instances_ami   = "ami-0cd0767d8ed6ad0a9"
+  instances_type  = "t4g.nano"
 }

@@ -118,3 +118,48 @@ resource "aws_security_group" "sg_ghrunner" {
   }
 }
 
+# Internet Gateway
+
+resource "aws_ebs_volume" "natgw" {
+  availability_zone = local.azs[0]
+  size              = 8
+  type              = "gp3"
+  tags = {
+    Name = local.natgw_ebs_name
+  }
+}
+
+resource "aws_instance" "natgw" {
+  ami                    = local.instances_ami
+  instance_type          = local.instances_type
+  key_name               = aws_key_pair.aws_keypair.key_name
+  subnet_id              = aws_subnet.public_subnet[local.azs[0]].id
+  vpc_security_group_ids = [aws_security_group.sg_natgw.id]
+  user_data              = filebase64("${path.module}/../src/natgw_instance_userdata.sh")
+  root_block_device {
+    volume_id = aws_ebs_volume.natgw.id
+  }
+  tags = {
+    Name = local.natgw_instance_name
+  }
+  # Deshabilitar source/dest check
+  source_dest_check = false
+}
+
+# Elastic IP para NAT Gateway
+resource "aws_eip" "natgw" {
+  instance = aws_instance.natgw.id
+  vpc      = true
+  tags = {
+    Name = local.natgw_instance_name
+  }
+}
+resource "aws_internet_gateway" "igw_main" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = local.igw_name
+  }
+}
+
+# NatGW Instance
+
