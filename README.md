@@ -35,5 +35,5 @@ git clone https://github.com/zenpresscloudorg/aws-bootstrap
 ### 5) Run runme.sh
 
 ```bash
-chmod +x ./aws-bootstrap/runme.sh ; ./aws-bootstrap/runme.sh
+chmod +x aws-bootstrap/runnme.sh ; aws-bootstrap/runnme.sh
 ```
