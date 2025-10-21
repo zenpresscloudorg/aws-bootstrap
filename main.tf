@@ -25,7 +25,7 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames           = true
   assign_generated_ipv6_cidr_block = var.vpc_ipv6_enable
   tags = {
-    Name = "${var.project_name}-vpc"
+  Name = local.vpc_name
   }
 }
 
@@ -120,15 +120,6 @@ resource "aws_security_group" "sg_ghrunner" {
 
 # Internet Gateway
 
-resource "aws_ebs_volume" "natgw" {
-  availability_zone = local.azs[0]
-  size              = 8
-  type              = "gp3"
-  tags = {
-    Name = local.natgw_ebs_name
-  }
-}
-
 resource "aws_instance" "natgw" {
   ami                    = local.instances_ami
   instance_type          = local.instances_type
@@ -137,12 +128,14 @@ resource "aws_instance" "natgw" {
   vpc_security_group_ids = [aws_security_group.sg_natgw.id]
   user_data              = filebase64("${path.module}/src/natgw_instance_userdata.sh")
   root_block_device {
-    volume_id = aws_ebs_volume.natgw.id
+    volume_type = "gp3"
+    tags = {
+      Name = local.natgw_ebs_name
+    }
   }
   tags = {
     Name = local.natgw_instance_name
   }
-  # Deshabilitar source/dest check
   source_dest_check = false
 }
 
