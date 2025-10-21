@@ -1,4 +1,4 @@
-# Variables de configuración general
+
 variable "project_name" {
   description = "Nombre del proyecto"
   type        = string
@@ -40,6 +40,11 @@ variable "hostedzones_private" {
   description = "Lista de zonas DNS privadas"
   type        = list(string)
   default     = ["demo.demo"]
+}
+
+variable "tailscale_auth_key" {
+  description = "Llave de autenticación para Tailscale."
+  type        = string
 }
 
 variable "github_org" {

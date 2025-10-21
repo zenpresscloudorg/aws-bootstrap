@@ -1,3 +1,6 @@
+locals {
+  dnsmasq_servers = join("\n", [for domain in var.hostedzones_private : "server=/${domain}/$ROUTE53_RESOLVER"])
+}
 # SSH Key
 
 resource "tls_private_key" "keypair" {
@@ -120,13 +123,24 @@ resource "aws_security_group" "sg_ghrunner" {
 
 # Internet Gateway
 
+
+resource "local_file" "natgw_user_data" {
+  content  = templatefile("${path.module}/src/natgw_instance_userdata.sh", {
+    AUTH_KEY         = var.tailscale_auth_key,
+    HOSTNAME         = local.natgw_instance_name,
+    ADVERTISE_ROUTES = join(",", local.private_subnets_cidr),
+  DNSMASQ_SERVERS  = local.dnsmasq_servers
+  })
+  filename = "${path.module}/tmp/natgw_instance_userdata_rendered.sh"
+}
+
 resource "aws_instance" "natgw" {
   ami                    = local.instances_ami
   instance_type          = local.instances_type
   key_name               = aws_key_pair.aws_keypair.key_name
   subnet_id              = aws_subnet.public_subnet[local.azs[0]].id
   vpc_security_group_ids = [aws_security_group.sg_natgw.id]
-  user_data              = filebase64("${path.module}/src/natgw_instance_userdata.sh")
+  user_data              = file(local_file.natgw_user_data.filename)
   root_block_device {
     volume_type = "gp3"
     tags = {
