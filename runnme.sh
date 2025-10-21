@@ -60,5 +60,5 @@ EOF
 
 # Run terraform
 
-terraform init
-terraform apply -var-file="$(dirname "$0")/vars.json"
+terraform -chdir="$(dirname "$0")" init
+terraform -chdir="$(dirname "$0")" apply -var-file="vars.json"
