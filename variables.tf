@@ -48,7 +48,6 @@ variable "github_org" {
   default     = "demo.demo"
 }
 
-variable "github_org" {}
 variable "github_personal_token" {
 description = "Token para GitHub Actions runners"
   type        = string
