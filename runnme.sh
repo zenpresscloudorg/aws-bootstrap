@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Read vars,json
+# Read vars.json
 
-project_name=$(jq -r '.project_name' vars.json)
-project_environment=$(jq -r '.project_environment' vars.json)
+project_name=$(jq -r '.project_name' "$(dirname "$0")/vars.json")
+project_environment=$(jq -r '.project_environment' "$(dirname "$0")/vars.json")
 aws_region=${AWS_REGION}
 
 # Formato del nombre del bucket
