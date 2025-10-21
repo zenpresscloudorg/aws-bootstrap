@@ -135,7 +135,7 @@ resource "aws_instance" "natgw" {
   key_name               = aws_key_pair.aws_keypair.key_name
   subnet_id              = aws_subnet.public_subnet[local.azs[0]].id
   vpc_security_group_ids = [aws_security_group.sg_natgw.id]
-  user_data              = filebase64("${path.module}/../src/natgw_instance_userdata.sh")
+  user_data              = filebase64("${path.module}/src/natgw_instance_userdata.sh")
   root_block_device {
     volume_id = aws_ebs_volume.natgw.id
   }
@@ -149,7 +149,6 @@ resource "aws_instance" "natgw" {
 # Elastic IP para NAT Gateway
 resource "aws_eip" "natgw" {
   instance = aws_instance.natgw.id
-  vpc      = true
   tags = {
     Name = local.natgw_instance_name
   }
