@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Leer valores de vars.json
+# Read vars,json
 
 project_name=$(jq -r '.project_name' vars.json)
 project_environment=$(jq -r '.project_environment' vars.json)
@@ -11,7 +11,6 @@ bucket_name="${project_name}-bootstrap-${project_environment}-ebs-natgw"
 
 # Terraform
 
-echo "Instalando Terraform..."
 sudo yum install -y yum-utils
 sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
 sudo yum -y install terraform
