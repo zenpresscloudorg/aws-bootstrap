@@ -18,12 +18,12 @@ sudo yum -y install terraform
 # Bucket
 
 if aws s3api head-bucket --bucket "$bucket_name" 2>/dev/null; then
-	echo "El bucket $bucket_name ya existe."
+	echo "Bucket namet $bucket_name already exists."
 else
 	aws s3api create-bucket --bucket "$bucket_name" --region "$aws_region" --create-bucket-configuration LocationConstraint="$aws_region"
 	aws s3api put-bucket-versioning --bucket "$bucket_name" --versioning-configuration Status=Enabled
 	aws s3api put-bucket-encryption --bucket "$bucket_name" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-	cat > bucket-policy.json <<'EOF'
+		cat > /tmp/bucket-policy.json <<'EOF'
 {
 	"Version": "2012-10-17",
 	"Statement": [
@@ -43,7 +43,7 @@ else
 	]
 }
 EOF
-	aws s3api put-bucket-policy --bucket "$bucket_name" --policy file://bucket-policy.json
+		aws s3api put-bucket-policy --bucket "$bucket_name" --policy file:///tmp/bucket-policy.json
 fi
 
 # Generate backend
@@ -61,4 +61,4 @@ EOF
 # Run terraform
 
 terraform init
-terraform apply -var-file="../vars.json"
+terraform apply -var-file="$(dirname "$0")/vars.json"
