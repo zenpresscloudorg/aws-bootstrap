@@ -23,27 +23,6 @@ else
 	aws s3api create-bucket --bucket "$bucket_name" --region "$aws_region" --create-bucket-configuration LocationConstraint="$aws_region"
 	aws s3api put-bucket-versioning --bucket "$bucket_name" --versioning-configuration Status=Enabled
 	aws s3api put-bucket-encryption --bucket "$bucket_name" --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
-		cat > /tmp/bucket-policy.json <<'EOF'
-{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Principal": "*",
-			"Action": [
-				"s3:GetObject",
-				"s3:PutObject",
-				"s3:ListBucket"
-			],
-			"Resource": [
-				"arn:aws:s3:::$bucket_name",
-				"arn:aws:s3:::$bucket_name/*"
-			]
-		}
-	]
-}
-EOF
-		aws s3api put-bucket-policy --bucket "$bucket_name" --policy file:///tmp/bucket-policy.json
 fi
 
 # Generate backend
