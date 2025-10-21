@@ -48,7 +48,7 @@ fi
 
 # Generate backend
 
-cat > backend.tf <<EOF
+cat > "$(dirname "$0")/backend.tf" <<EOF
 terraform {
 	backend "s3" {
 		bucket = "$bucket_name"
