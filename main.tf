@@ -265,7 +265,7 @@ resource "aws_iam_instance_profile" "ghrunner" {
   role = aws_iam_role.role_ghrunner.name
 }
 
-data "http" "org_runner_token" {
+data "http" "http_ghrunner_token" {
   url = "https://api.github.com/orgs/${var.gh_org}/actions/runners/registration-token"
   request_headers = {
     Authorization = "Bearer ${var.github_pat}"
@@ -276,7 +276,7 @@ data "http" "org_runner_token" {
 resource "local_file" "userdata_ghrunner" {
   content  = templatefile("${path.module}/src/userdata/ghrunner.sh", {
     GH_ORG = var.gh_org
-    Gh_RUNNER_TOKEN= jsondecode(data.http.org_runner_token.body)["token"]
+    Gh_RUNNER_TOKEN= jsondecode(data.http.http_ghrunner_token.body)["token"]
     GH_RUNNER_NAME= local.instance_ghrunner_name
   })
   filename = "${path.module}/tmp/userdata_ghrunner_rendered.sh"
@@ -425,6 +425,16 @@ resource "aws_iam_role_policy_attachment" "policyattach_lambda_ghdispatcher_secr
   role       = aws_iam_role.role_lambda_ghdispatcher.name
   policy_arn = aws_iam_policy.policy_lambda_ghdispatcher_secrets.arn
 }
+
+data "http" "http_ghrunner_token" {
+  url = "https://api.github.com/orgs/${var.gh_org}/actions/runners/registration-token"
+  request_headers = {
+    Authorization = "Bearer ${var.github_pat}"
+    Accept        = "application/vnd.github+json"
+  }
+}
+
+Gh_RUNNER_TOKEN= jsondecode(data.http.http_ghrunner_token.body)["token"]
 
 resource "aws_lambda_function" "lambda_ghdispatcher" {
   provider      = aws.lambda_eu_west_1
