@@ -43,8 +43,8 @@ cat > aws-bootstrap/vars.json <<EOF
    "vpc_cidr": "10.0.0.0/16 (must be cidr format)", 
    "vpc_ipv6_enable": true/false,
    "vpc_subnet_private_tskey": "Token from tailscale auth section",
-   "hostedzones_public": ["demo.demo"],
-   "hostedzones_private": ["demo.demo"],
+   "hostedzones_public": "demo.demo",
+   "hostedzones_private": "demo.demo",
    "github_org": "github organization name",
    "github_pat": "The token generated in github"
 }

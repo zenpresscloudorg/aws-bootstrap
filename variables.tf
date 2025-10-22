@@ -30,16 +30,14 @@ variable "vpc_subnet_private_tskey" {
   type        = string
 }
 
-variable "hostedzones_public" {
-  description = "List of public DNS zones"
-  type        = list(string)
-  default     = []
+variable "hostedzone_public" {
+  description = "Public DNS zones"
+  type        = string
 }
 
-variable "hostedzones_private" {
-  description = "List of private DNS zones"
-  type        = list(string)
-  default     = []
+variable "hostedzone_private" {
+  description = "Private DNS zones"
+  type        = string
 }
 
 variable "tailscale_auth_key" {

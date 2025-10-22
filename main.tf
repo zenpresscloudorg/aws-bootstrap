@@ -6,15 +6,20 @@ resource "tls_private_key" "keypair" {
 }
 
 resource "aws_key_pair" "aws_keypair" {
-  key_name   = local.keypair_name
+  key_name   = local.keypair_main_name
   public_key = tls_private_key.keypair.public_key_openssh
 }
 
-resource "local_file" "keypair_save" {
-  content              = tls_private_key.keypair.private_key_pem
-  filename             = "${path.cwd}/${local.keypair_name}.pem"
-  file_permission      = "0600"
-  directory_permission = "0700"
+resource "aws_secretsmanager_secret" "secret_keypair_main" {
+  name        = local.secret_keypair_main
+}
+
+resource "aws_secretsmanager_secret_version" "secretvalue_keypair_main" {
+  secret_id     = aws_secretsmanager_secret.secret_keypair_main.id
+  secret_string = jsonencode({
+    keypair_private = tls_private_key.keypair.private_key_pem
+    keypair_public = tls_private_key.keypair.public_key_openssh
+  })
 }
 
 # VPC
@@ -25,7 +30,7 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames           = true
   assign_generated_ipv6_cidr_block = var.vpc_ipv6_enable
   tags = {
-  Name = local.vpc_name
+    Name = local.vpc_name
   }
 }
 
@@ -345,13 +350,11 @@ resource "aws_s3_bucket_policy" "policy_s3_tfstate" {
 # Hostedzone
 
 resource "aws_route53_zone" "public" {
-  for_each = { for zone in var.hostedzones_public : zone => zone }
-  name     = each.value
+  name = var.hostedzone_public
 }
 
 resource "aws_route53_zone" "private" {
-  for_each = { for zone in var.hostedzones_private : zone => zone }
-  name     = each.value
+  name = var.hostedzone_private
   vpc {
     vpc_id     = aws_vpc.main.id
     vpc_region = data.aws_region.current.name
