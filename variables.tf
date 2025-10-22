@@ -25,11 +25,6 @@ variable "vpc_ipv6_enable" {
   default     = true
 }
 
-variable "vpc_subnet_private_tskey" {
-  description = "Key to identify private subnets"
-  type        = string
-}
-
 variable "hostedzone_public" {
   description = "Public DNS zones"
   type        = string
