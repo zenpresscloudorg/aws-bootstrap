@@ -45,7 +45,7 @@ cat > aws-bootstrap/vars.json <<EOF
    "vpc_subnet_private_tskey": "Token from tailscale auth section",
    "hostedzones_public": "demo.demo",
    "hostedzones_private": "demo.demo",
-   "github_org": "github organization name",
+   "gh_org": "github organization name",
    "github_pat": "The token generated in github"
 }
 EOF

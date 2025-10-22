@@ -45,7 +45,7 @@ variable "tailscale_auth_key" {
   type        = string
 }
 
-variable "github_org" {
+variable "gh_org" {
   description = "GitHub organization"
   type        = string
 }

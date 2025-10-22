@@ -266,7 +266,7 @@ resource "aws_iam_instance_profile" "ghrunner" {
 }
 
 data "http" "org_runner_token" {
-  url = "https://api.github.com/orgs/${var.github_org}/actions/runners/registration-token"
+  url = "https://api.github.com/orgs/${var.GH_ORG}/actions/runners/registration-token"
   request_headers = {
     Authorization = "Bearer ${var.github_pat}"
     Accept        = "application/vnd.github+json"
@@ -275,9 +275,9 @@ data "http" "org_runner_token" {
 
 resource "local_file" "userdata_ghrunner" {
   content  = templatefile("${path.module}/src/userdata/ghrunner.sh", {
-    GITHUB_ORG = var.github_org
-    GITHUB_RUNNER_TOKEN= jsondecode(data.http.org_runner_token.body)["token"]
-    GHRUNNER_INSTANCE_NAME= local.instance_ghrunner_name
+    GH_ORG = var.gh_org
+    Gh_RUNNER_TOKEN= jsondecode(data.http.org_runner_token.body)["token"]
+    GH_RUNNER_NAME= local.instance_ghrunner_name
   })
   filename = "${path.module}/tmp/userdata_ghrunner_rendered.sh"
 }
@@ -436,7 +436,7 @@ resource "aws_lambda_function" "lambda_ghdispatcher" {
   timeout       = 10
   environment {
     variables = {
-      GITHUB_ORG   = "test"
+      GH_ORG   = var.gh_org
       GITHUB_REPO  = "test"
       SECRET_GHTOKEN_DISPATCHER = aws_secretsmanager_secret.secret_ghtoken_dispatcher.id
     }
