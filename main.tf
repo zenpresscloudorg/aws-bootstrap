@@ -1,6 +1,3 @@
-locals {
-  dnsmasq_servers = join("\n", [for domain in var.hostedzones_private : "server=/${domain}/$ROUTE53_RESOLVER"])
-}
 # SSH Key
 
 resource "tls_private_key" "keypair" {
@@ -87,7 +84,7 @@ resource "aws_security_group" "sg_test" {
 
 resource "aws_security_group" "sg_natgw" {
   name        = local.sg_natgw_name
-  description = "ec2-natgw"
+  description = "instance_natgw"
   vpc_id      = aws_vpc.main.id
   ingress {
     from_port   = 0
@@ -121,44 +118,35 @@ resource "aws_security_group" "sg_ghrunner" {
   }
 }
 
-# Internet Gateway
+# NatGW Instance
 
-
-resource "local_file" "natgw_user_data" {
-  content  = templatefile("${path.module}/src/natgw_instance_userdata.sh", {
+resource "local_file" "userdata_natgw" {
+  content  = templatefile("${path.module}/src/userdata_natgw.sh", {
     AUTH_KEY         = var.tailscale_auth_key,
-    HOSTNAME         = local.natgw_instance_name,
+      HOSTNAME         = local.instance_natgw_name,
     ADVERTISE_ROUTES = join(",", local.private_subnets_cidr),
-  DNSMASQ_SERVERS  = local.dnsmasq_servers
+    DNSMASQ_SERVERS  = local.dnsmasq_servers
   })
-  filename = "${path.module}/tmp/natgw_instance_userdata_rendered.sh"
+  filename = "${path.module}/tmp/userdata_natgw_rendered.sh"
 }
 
-resource "aws_instance" "natgw" {
+resource "aws_instance" "instance_natgw" {
   ami                    = local.instances_ami
   instance_type          = local.instances_type
   key_name               = aws_key_pair.aws_keypair.key_name
   subnet_id              = aws_subnet.public_subnet[local.azs[0]].id
   vpc_security_group_ids = [aws_security_group.sg_natgw.id]
-  user_data              = file(local_file.natgw_user_data.filename)
+  user_data              = file(local_file.userdata_natgw.filename)
   root_block_device {
     volume_type = "gp3"
     tags = {
-      Name = local.natgw_ebs_name
+      Name = local.ebs_natgw_name
     }
   }
   tags = {
-    Name = local.natgw_instance_name
+     Name = local.instance_natgw_name
   }
   source_dest_check = false
-}
-
-# Elastic IP para NAT Gateway
-resource "aws_eip" "natgw" {
-  instance = aws_instance.natgw.id
-  tags = {
-    Name = local.natgw_instance_name
-  }
 }
 
 resource "aws_internet_gateway" "igw_main" {
@@ -168,5 +156,195 @@ resource "aws_internet_gateway" "igw_main" {
   }
 }
 
-# NatGW Instance
+# Route tables
 
+resource "aws_route_table" "rt_public" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = local.rt_public_name
+  }
+}
+
+resource "aws_route" "route_public_main" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.igw_main.id
+}
+
+resource "aws_route_table_association" "rtassoc_public" {
+  for_each = aws_subnet.public_subnet
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.rt_public.id
+}
+
+resource "aws_route_table" "rt_private" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = local.rt_private_name
+  }
+}
+
+resource "aws_route" "route_private_main" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  instance_id            = aws_instance.instance_natgw.id
+}
+
+resource "aws_route_table_association" "rtassoc_private" {
+  for_each = aws_subnet.private_subnet
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private.id
+}
+
+# Runner
+
+resource "aws_iam_role" "role_ghrunner" {
+  name = local.role_ghrunner
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_policy" "policy_ghrunner" {
+  name        = local.policy_ghrunner
+  policy      = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "s3:*"
+        Resource = [
+          "arn:aws:s3:::${var.project_name}-${var.project_environment}-s3-*",
+          "arn:aws:s3:::${var.project_name}-${var.project_environment}-s3-*/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = "dynamodb:*"
+        Resource = [
+          "arn:aws:dynamodb:${data.aws_region.current.name}:*:table/${var.project_name}-${var.project_environment}-ddb-*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ghrunner" {
+  role       = aws_iam_role.role_ghrunner.name
+  policy_arn = aws_iam_policy.policy_ghrunner.arn
+}
+
+resource "aws_iam_instance_profile" "ghrunner" {
+  name = local.instanceprofile_ghrunner
+  role = aws_iam_role.role_ghrunner.name
+}
+
+resource "local_file" "userdata_ghrunner" {
+  content  = templatefile("${path.module}/src/userdata_ghrunner.sh", {
+    GITHUB_ORG = var.github_org
+    GITHUB_RUNNER_TOKEN= var.github_pat
+    GHRUNNER_INSTANCE_NAME= local.instance_ghrunner_name
+  })
+  filename = "${path.module}/tmp/userdata_ghrunner_rendered.sh"
+}
+
+resource "aws_instance" "instance_ghrunner" {
+  ami                    = local.instances_ami
+  instance_type          = local.instances_type
+  key_name               = aws_key_pair.aws_keypair.key_name
+  subnet_id              = aws_subnet.private_subnet[local.azs[0]].id
+  vpc_security_group_ids = [aws_security_group.sg_ghrunner.id]
+  user_data              = file(local_file.userdata_ghrunner.filename)
+  root_block_device {
+    volume_type = "gp3"
+    tags = {
+      Name = local.ebs_ghrunner_name
+    }
+  }
+  tags = {
+     Name = local.instance_ghrunner_name
+  }
+}
+
+# S3 Terraform bucket
+
+resource "aws_s3_bucket" "s3_tfstate" {
+  bucket = local.s3_tfstate
+}
+
+resource "aws_s3_bucket_versioning" "s3versioning_tfstate" {
+  bucket = aws_s3_bucket.s3_tfstate.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "s3encryption_tfstate" {
+  bucket = aws_s3_bucket.s3_tfstate.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "policy_s3_tfstate" {
+  bucket = aws_s3_bucket.s3_tfstate.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "AllowOnlySpecificRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = aws_iam_role.role_ghrunner.arn
+        }
+        Action = "s3:*"
+        Resource = [
+          "arn:aws:s3:::${local.s3_tfstate}",
+          "arn:aws:s3:::${local.s3_tfstate}/*"
+        ]
+      },
+      {
+        Sid = "DenyAllOtherPrincipals"
+        Effect = "Deny"
+        Principal = "*"
+        Action = "s3:*"
+        Resource = [
+          "arn:aws:s3:::${local.s3_tfstate}",
+          "arn:aws:s3:::${local.s3_tfstate}/*"
+        ]
+        Condition = {
+          StringNotEquals = {
+            "aws:PrincipalArn" = aws_iam_role.role_ghrunner.arn
+          }
+        }
+      }
+    ]
+  })
+}
+
+# Hostedzone
+
+resource "aws_route53_zone" "public" {
+  for_each = { for zone in var.hostedzones_public : zone => zone }
+  name     = each.value
+}
+
+resource "aws_route53_zone" "private" {
+  for_each = { for zone in var.hostedzones_private : zone => zone }
+  name     = each.value
+  vpc {
+    vpc_id     = aws_vpc.main.id
+    vpc_region = data.aws_region.current.name
+  }
+}

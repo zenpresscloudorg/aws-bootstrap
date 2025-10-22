@@ -7,5 +7,5 @@
    "hostedzones_public": ["demo.demo"],
    "hostedzones_private": ["demo.demo"],
    "github_org": "demo.demo",
-   "github_runner_token": "demo"
+   "github_pat": "demo"
 }

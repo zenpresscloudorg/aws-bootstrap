@@ -1,61 +1,54 @@
-
 variable "project_name" {
-  description = "Nombre del proyecto"
+  description = "Project name"
   type        = string
   default     = "demo"
 }
 
 variable "project_environment" {
-  description = "Entorno del proyecto (dev, staging, prod)"
+  description = "Project environment (dev, staging, prod)"
   type        = string
-  default     = "prod"
 }
 
-# Variables de VPC
+# VPC variables
 variable "vpc_cidr" {
-  description = "CIDR block para la VPC"
+  description = "CIDR block for the VPC"
   type        = string
   default     = "10.0.0.0/16"
 }
 
 variable "vpc_ipv6_enable" {
-  description = "Habilitar soporte IPv6 en la VPC"
+  description = "Enable IPv6 support in the VPC"
   type        = bool
   default     = true
 }
 
 variable "vpc_subnet_private_tskey" {
-  description = "Clave para identificar subnets privadas"
+  description = "Key to identify private subnets"
   type        = string
-  default     = "demo"
 }
 
 variable "hostedzones_public" {
-  description = "Lista de zonas DNS públicas"
+  description = "List of public DNS zones"
   type        = list(string)
-  default     = ["demo.demo"]
 }
 
 variable "hostedzones_private" {
-  description = "Lista de zonas DNS privadas"
+  description = "List of private DNS zones"
   type        = list(string)
-  default     = ["demo.demo"]
 }
 
 variable "tailscale_auth_key" {
-  description = "Llave de autenticación para Tailscale."
+  description = "Authentication key for Tailscale."
   type        = string
 }
 
 variable "github_org" {
-  description = "Organización de GitHub"
+  description = "GitHub organization"
   type        = string
-  default     = "demo.demo"
 }
 
-variable "github_personal_token" {
-description = "Token para GitHub Actions runners"
+variable "github_pat" {
+  description = "Token for GitHub Actions runners"
   type        = string
   sensitive   = true
-  default     = "demo"
 }

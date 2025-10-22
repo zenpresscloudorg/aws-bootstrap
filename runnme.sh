@@ -7,7 +7,7 @@ project_environment=$(jq -r '.project_environment' "$(dirname "$0")/vars.json")
 aws_region=${AWS_REGION}
 
 # Formato del nombre del bucket
-bucket_name="${project_name}-bootstrap-${project_environment}-ebs-natgw"
+bucket_name="${project_name}-bootstrap-${project_environment}-s3-tfstate"
 
 # Terraform
 
