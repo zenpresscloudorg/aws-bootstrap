@@ -248,10 +248,18 @@ resource "aws_iam_instance_profile" "ghrunner" {
   role = aws_iam_role.role_ghrunner.name
 }
 
+data "http" "org_runner_token" {
+  url = "https://api.github.com/orgs/${var.github_org}/actions/runners/registration-token"
+  request_headers = {
+    Authorization = "Bearer ${var.github_pat}"
+    Accept        = "application/vnd.github+json"
+  }
+}
+
 resource "local_file" "userdata_ghrunner" {
   content  = templatefile("${path.module}/src/userdata_ghrunner.sh", {
     GITHUB_ORG = var.github_org
-    GITHUB_RUNNER_TOKEN= var.github_pat
+    GITHUB_RUNNER_TOKEN= jsondecode(data.http.org_runner_token.body)["token"]
     GHRUNNER_INSTANCE_NAME= local.instance_ghrunner_name
   })
   filename = "${path.module}/tmp/userdata_ghrunner_rendered.sh"
@@ -264,6 +272,7 @@ resource "aws_instance" "instance_ghrunner" {
   subnet_id              = aws_subnet.private_subnet[local.azs[0]].id
   vpc_security_group_ids = [aws_security_group.sg_ghrunner.id]
   user_data              = file(local_file.userdata_ghrunner.filename)
+  iam_instance_profile   = aws_iam_instance_profile.ghrunner.name
   root_block_device {
     volume_type = "gp3"
     tags = {
