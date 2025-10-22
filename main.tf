@@ -1,3 +1,13 @@
+# Random strings
+
+resource "random_string" "randomstring_ghdispatcher" {
+  length  = 8
+  upper   = true
+  lower   = true
+  numeric = true
+  special = false
+}
+
 # SSH Key
 
 resource "tls_private_key" "keypair" {
@@ -354,15 +364,7 @@ resource "aws_s3_bucket_policy" "policy_s3_tfstate" {
   })
 }
 
-# Github webhook dispatcher
-
-resource "random_string" "randomstring_ghdispatcher" {
-  length  = 8
-  upper   = true
-  lower   = true
-  numeric = true
-  special = false
-}
+# Lambda dispatcher
 
 data "archive_file" "zip_lambda_ghdispatcher" {
   type        = "zip"
