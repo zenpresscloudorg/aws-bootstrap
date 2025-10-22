@@ -17,20 +17,39 @@
 
 ### 1) Login in AWS CloudShell (login in aws region you want to bootstrap)
 
-### 2) Clone repository
+### 2) Create github token to add runner
+
+1. Create Fine-Grained token [GitHub](https://github.com/settings/personal-access-tokens).
+2. Under **Resource owner**, select your **organization**.
+3. Under **Repository access**, choose **All repositories**.
+4. Under **Permissions**, set:
+   - **Administration** → *Read and write*  
+   - **Actions** → *Read and write*
+5. Set an **expiration date of 7 days** (required).  
+6. Click **Generate token**.
+
+### 3) Clone repository
 
 ```bash
 git clone https://github.com/zenpresscloudorg/aws-bootstrap
 ```
 
-### 4) Modify vars.json file. 
-    Notes:
-    - VPC CIDR must be /16
-    - vpc_ipv6_enable must be true or false
-    - "hostedzones_public" and "hostedzones_private" arrays can be empty
-    - vpc_subnet_private_enable must be true or false. If is true You need a tailscale api key to access private subnet resources
-    - github_org
-    - github_runner_token
+### 4) Create vars.json file
+```bash
+cat > aws-bootstrap/vars.json <<EOF
+{
+   "project_name":"demo",
+   "project_environment":"dev/prod",
+   "vpc_cidr": "10.0.0.0/16 (must be cidr format)", 
+   "vpc_ipv6_enable": true/false,
+   "vpc_subnet_private_tskey": "Token from tailscale auth section",
+   "hostedzones_public": ["demo.demo"],
+   "hostedzones_private": ["demo.demo"],
+   "github_org": "github organization name",
+   "github_pat": "The token generated in github"
+}
+EOF
+```
 
 ### 5) Run runme.sh
 
