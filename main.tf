@@ -266,7 +266,7 @@ resource "aws_iam_instance_profile" "ghrunner" {
 }
 
 data "http" "org_runner_token" {
-  url = "https://api.github.com/orgs/${var.GH_ORG}/actions/runners/registration-token"
+  url = "https://api.github.com/orgs/${var.gh_org}/actions/runners/registration-token"
   request_headers = {
     Authorization = "Bearer ${var.github_pat}"
     Accept        = "application/vnd.github+json"
@@ -291,7 +291,7 @@ resource "aws_instance" "instance_ghrunner" {
   user_data              = file(local_file.userdata_ghrunner.filename)
   iam_instance_profile   = aws_iam_instance_profile.ghrunner.name
   root_block_device {
-    volume_type = "gp3"
+    volume_type = locals.instances_disk
     tags = {
       Name = local.ebs_ghrunner_name
     }
