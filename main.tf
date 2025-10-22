@@ -24,14 +24,17 @@ resource "aws_secretsmanager_secret_version" "secretvalue_keypair_main" {
   })
 }
 
-resource "aws_secretsmanager_secret" "secret_ghtoken_dispatcher" {
+resource "aws_secretsmanager_secret" "secret_ghdispatcher" {
   name        = "github-token"
   description = "GitHub token para la función Lambda dispatcher"
 }
 
-resource "aws_secretsmanager_secret_version" "secretvalue_ghtoken_dispatcher" {
-  secret_id     = aws_secretsmanager_secret.secret_ghtoken_dispatcher.id
-  secret_string = "test"
+resource "aws_secretsmanager_secret_version" "secretvalue_ghdispatcher" {
+  secret_id     = aws_secretsmanager_secret.secret_ghdispatcher.id
+  secret_string = jsonencode({
+    gh_dispatcher_token = var.gh_dispatcher_token
+    api_auth = random_string.randomstring_ghdispatcher.result
+  })
 }
 
 # VPC
@@ -265,19 +268,11 @@ resource "aws_iam_instance_profile" "ghrunner" {
   role = aws_iam_role.role_ghrunner.name
 }
 
-data "http" "http_ghrunner_token" {
-  url = "https://api.github.com/orgs/${var.gh_org}/actions/runners/registration-token"
-  request_headers = {
-    Authorization = "Bearer ${var.github_pat}"
-    Accept        = "application/vnd.github+json"
-  }
-}
-
 resource "local_file" "userdata_ghrunner" {
   content  = templatefile("${path.module}/src/userdata/ghrunner.sh", {
     GH_ORG = var.gh_org
-    Gh_RUNNER_TOKEN= jsondecode(data.http.http_ghrunner_token.body)["token"]
-    GH_RUNNER_NAME= local.instance_ghrunner_name
+    Gh_RUNNER_TOKEN = var.gh_runner_token
+    GH_RUNNER_NAME = local.instance_ghrunner_name
   })
   filename = "${path.module}/tmp/userdata_ghrunner_rendered.sh"
 }
@@ -361,10 +356,18 @@ resource "aws_s3_bucket_policy" "policy_s3_tfstate" {
 
 # Github webhook dispatcher
 
+resource "random_string" "randomstring_ghdispatcher" {
+  length  = 8
+  upper   = true
+  lower   = true
+  numeric = true
+  special = false
+}
+
 data "archive_file" "zip_lambda_ghdispatcher" {
   type        = "zip"
-  source_dir  = "${path.module}/src/lambda/gh_dispatcher"
-  output_path = "${path.module}/tmp/lambda_gh_dispatcher.zip"
+  source_dir  = "${path.module}/src/lambda/ghdispatcher"
+  output_path = "${path.module}/tmp/lambda_ghdispatcher.zip"
 }
 
 resource "aws_iam_role" "role_lambda_ghdispatcher" {
@@ -405,8 +408,8 @@ resource "aws_iam_role_policy_attachment" "policyattach_lambda_ghdispatcher_basi
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_policy" "policy_lambda_ghdispatcher_secrets" {
-  name   = "lambda-ghdispatcher-secrets-access"
+resource "aws_iam_policy" "policy_secret_ghdispatcher" {
+  name   = local.policy_secret_ghdispatcher_name
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -415,26 +418,16 @@ resource "aws_iam_policy" "policy_lambda_ghdispatcher_secrets" {
         Action = [
           "secretsmanager:GetSecretValue"
         ],
-        Resource = aws_secretsmanager_secret.secret_ghtoken_dispatcher.arn
+        Resource = aws_secretsmanager_secret.secret_ghdispatcher.arn
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "policyattach_lambda_ghdispatcher_secrets" {
+resource "aws_iam_role_policy_attachment" "policyattach_ghdispatcher_secrets" {
   role       = aws_iam_role.role_lambda_ghdispatcher.name
-  policy_arn = aws_iam_policy.policy_lambda_ghdispatcher_secrets.arn
+  policy_arn = aws_iam_policy.policy_secret_ghdispatcher.arn
 }
-
-data "http" "http_ghrunner_token" {
-  url = "https://api.github.com/orgs/${var.gh_org}/actions/runners/registration-token"
-  request_headers = {
-    Authorization = "Bearer ${var.github_pat}"
-    Accept        = "application/vnd.github+json"
-  }
-}
-
-Gh_RUNNER_TOKEN= jsondecode(data.http.http_ghrunner_token.body)["token"]
 
 resource "aws_lambda_function" "lambda_ghdispatcher" {
   provider      = aws.lambda_eu_west_1
@@ -447,8 +440,7 @@ resource "aws_lambda_function" "lambda_ghdispatcher" {
   environment {
     variables = {
       GH_ORG   = var.gh_org
-      GITHUB_REPO  = "test"
-      SECRET_GHTOKEN_DISPATCHER = aws_secretsmanager_secret.secret_ghtoken_dispatcher.id
+      SECRET_GHDISPATCHER = aws_secretsmanager_secret.secret_ghdispatcher.id
     }
   }
 }

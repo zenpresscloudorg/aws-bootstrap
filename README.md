@@ -17,18 +17,7 @@
 
 ### 1) Login in AWS CloudShell (login in aws region you want to bootstrap)
 
-### 2) Create github token to add runner
-
-1. Create Fine-Grained token [GitHub](https://github.com/settings/personal-access-tokens).
-2. Under **Resource owner**, select your **organization**.
-3. Under **Repository access**, choose **All repositories**.
-4. Under **Permissions**, set:
-   - **Administration** → *Read and write*  
-   - **Actions** → *Read and write*
-5. Set an **expiration date of 7 days** (required).  
-6. Click **Generate token**.
-
-### 3) Clone repository
+### 2) Clone repository
 
 ```bash
 git clone https://github.com/zenpresscloudorg/aws-bootstrap
@@ -46,7 +35,8 @@ cat > aws-bootstrap/vars.json <<EOF
    "hostedzones_public": "demo.demo",
    "hostedzones_private": "demo.demo",
    "gh_org": "github organization name",
-   "github_pat": "The token generated in github"
+   "gh_dispatcher_token": "github pat token to dispatch workflows"
+   "gh_runner_token": "Github org runner token"
 }
 EOF
 ```

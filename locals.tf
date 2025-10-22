@@ -11,6 +11,7 @@ locals {
   policy_ec2_ghrunner_name = "${var.project_name}-bootstrap-${var.project_environment}-policy-ec2-ghrunner"
   role_lambda_ghdispatcher_name   = "${var.project_name}-${var.project_environment}-bootstrap-role-lambda-ghdispatcher"
   policy_lambda_ghdispatcher_name = "${var.project_name}-bootstrap-${var.project_environment}-bootstrap-policy-lambda-ghdispatcher"
+  policy_secret_ghdispatcher_name = "${var.project_name}-bootstrap-${var.project_environment}-bootstrap-policy-secret-ghdispatcher"
 
   # Lambdas
   lambda_ghdispatcher_name = "${var.project_name}-bootstrap-${var.project_environment}-lambda-ghdispatcher"

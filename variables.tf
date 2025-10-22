@@ -50,7 +50,13 @@ variable "gh_org" {
   type        = string
 }
 
-variable "github_pat" {
+variable "gh_dispatcher_token" {
+  description = "Token for GitHub Actions dispatching"
+  type        = string
+  sensitive   = true
+}
+
+variable "gh_runner_token" {
   description = "Token for GitHub Actions runners"
   type        = string
   sensitive   = true
