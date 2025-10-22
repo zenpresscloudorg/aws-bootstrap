@@ -3,12 +3,14 @@ import os
 import urllib.request
 import boto3
 
-client = boto3.client('secretsmanager')
-secret = client.get_secret_value(SecretId='github-token')
-github_token = secret['SecretString']
+def get_github_token():
+    secret_id = os.environ["SECRET_GHTOKEN_DISPATCHER"]
+    client = boto3.client("secretsmanager")
+    response = client.get_secret_value(SecretId=secret_id)
+    return response["SecretString"]
 
 def lambda_handler(event, context):
-    github_token = os.environ["GITHUB_TOKEN"]
+    github_token = get_github_token()
     org = os.environ["GITHUB_ORG"]
     repo = os.environ["GITHUB_REPO"]
 

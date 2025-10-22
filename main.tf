@@ -438,6 +438,7 @@ resource "aws_lambda_function" "lambda_ghdispatcher" {
     variables = {
       GITHUB_ORG   = "test"
       GITHUB_REPO  = "test"
+      SECRET_GHTOKEN_DISPATCHER = aws_secretsmanager_secret.secret_ghtoken_dispatcher.id
     }
   }
 }
