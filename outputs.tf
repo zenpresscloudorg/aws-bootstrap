@@ -44,3 +44,8 @@ output "secret_keypair" {
   description = "ID of the AWS Secrets Manager secret storing the SSH keypair (private and public)"
   value       = aws_secretsmanager_secret.secret_keypair_main.id
 }
+
+output "lambdaurl_ghdispatcher" {
+  description = "URL para invocar la función Lambda ghdispatcher"
+  value       = aws_lambda_function_url.lambdaurl_ghdispatcher.function_url
+}

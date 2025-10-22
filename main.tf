@@ -10,8 +10,10 @@ resource "aws_key_pair" "aws_keypair" {
   public_key = tls_private_key.keypair.public_key_openssh
 }
 
+# Secrets
+
 resource "aws_secretsmanager_secret" "secret_keypair_main" {
-  name        = local.secret_keypair_main
+  name        = local.secret_keypair_main_name
 }
 
 resource "aws_secretsmanager_secret_version" "secretvalue_keypair_main" {
@@ -20,6 +22,16 @@ resource "aws_secretsmanager_secret_version" "secretvalue_keypair_main" {
     keypair_private = tls_private_key.keypair.private_key_pem
     keypair_public = tls_private_key.keypair.public_key_openssh
   })
+}
+
+resource "aws_secretsmanager_secret" "secret_ghtoken_dispatcher" {
+  name        = "github-token"
+  description = "GitHub token para la función Lambda dispatcher"
+}
+
+resource "aws_secretsmanager_secret_version" "secretvalue_ghtoken_dispatcher" {
+  secret_id     = aws_secretsmanager_secret.secret_ghtoken_dispatcher.id
+  secret_string = "test"
 }
 
 # VPC
@@ -126,7 +138,7 @@ resource "aws_security_group" "sg_ghrunner" {
 # NatGW Instance
 
 resource "local_file" "userdata_natgw" {
-  content  = templatefile("${path.module}/src/userdata_natgw.sh", {
+  content  = templatefile("${path.module}/src/userdata/natgw.sh", {
     AUTH_KEY         = var.tailscale_auth_key,
       HOSTNAME         = local.instance_natgw_name,
     ADVERTISE_ROUTES = join(",", local.private_subnets_cidr),
@@ -204,7 +216,7 @@ resource "aws_route_table_association" "rtassoc_private" {
 # Runner
 
 resource "aws_iam_role" "role_ghrunner" {
-  name = local.role_ghrunner
+  name = local.role_ec2_ghrunner_name
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -220,7 +232,7 @@ resource "aws_iam_role" "role_ghrunner" {
 }
 
 resource "aws_iam_policy" "policy_ghrunner" {
-  name        = local.policy_ghrunner
+  name        = local.policy_ec2_ghrunner_name
   policy      = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -228,8 +240,8 @@ resource "aws_iam_policy" "policy_ghrunner" {
         Effect = "Allow"
         Action = "s3:*"
         Resource = [
-          "arn:aws:s3:::${var.project_name}-${var.project_environment}-s3-*",
-          "arn:aws:s3:::${var.project_name}-${var.project_environment}-s3-*/*"
+          "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}",
+          "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}/*"
         ]
       },
       {
@@ -262,7 +274,7 @@ data "http" "org_runner_token" {
 }
 
 resource "local_file" "userdata_ghrunner" {
-  content  = templatefile("${path.module}/src/userdata_ghrunner.sh", {
+  content  = templatefile("${path.module}/src/userdata/ghrunner.sh", {
     GITHUB_ORG = var.github_org
     GITHUB_RUNNER_TOKEN= jsondecode(data.http.org_runner_token.body)["token"]
     GHRUNNER_INSTANCE_NAME= local.instance_ghrunner_name
@@ -292,7 +304,7 @@ resource "aws_instance" "instance_ghrunner" {
 # S3 Terraform bucket
 
 resource "aws_s3_bucket" "s3_tfstate" {
-  bucket = local.s3_tfstate
+  bucket = local.s3_tfstate_name
 }
 
 resource "aws_s3_bucket_versioning" "s3versioning_tfstate" {
@@ -324,8 +336,8 @@ resource "aws_s3_bucket_policy" "policy_s3_tfstate" {
         }
         Action = "s3:*"
         Resource = [
-          "arn:aws:s3:::${local.s3_tfstate}",
-          "arn:aws:s3:::${local.s3_tfstate}/*"
+          "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}",
+          "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}/*"
         ]
       },
       {
@@ -334,8 +346,8 @@ resource "aws_s3_bucket_policy" "policy_s3_tfstate" {
         Principal = "*"
         Action = "s3:*"
         Resource = [
-          "arn:aws:s3:::${local.s3_tfstate}",
-          "arn:aws:s3:::${local.s3_tfstate}/*"
+          "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}",
+          "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}/*"
         ]
         Condition = {
           StringNotEquals = {
@@ -345,6 +357,95 @@ resource "aws_s3_bucket_policy" "policy_s3_tfstate" {
       }
     ]
   })
+}
+
+# Github webhook dispatcher
+
+data "archive_file" "zip_lambda_ghdispatcher" {
+  type        = "zip"
+  source_dir  = "${path.module}/src/lambda/gh_dispatcher"
+  output_path = "${path.module}/tmp/lambda_gh_dispatcher.zip"
+}
+
+resource "aws_iam_role" "role_lambda_ghdispatcher" {
+  name               = locals.role_lambda_ghdispatcher_name
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Effect    = "Allow"
+    }]
+  })
+}
+
+resource "aws_iam_policy" "policy_lambda_ghdispatcher" {
+  name   = local.policy_lambda_ghdispatcher_name
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "lambda:InvokeFunctionUrl"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "policyattach_lambda_ghdispatcher" {
+  role       = aws_iam_role.role_lambda_ghdispatcher.name
+  policy_arn = aws_iam_policy.policy_lambda_ghdispatcher.arn
+}
+
+resource "aws_iam_role_policy_attachment" "policyattach_lambda_ghdispatcher_basicexecution" {
+  role       = aws_iam_role.role_lambda_ghdispatcher.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_policy" "policy_lambda_ghdispatcher_secrets" {
+  name   = "lambda-ghdispatcher-secrets-access"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ],
+        Resource = aws_secretsmanager_secret.secret_ghtoken_dispatcher.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "policyattach_lambda_ghdispatcher_secrets" {
+  role       = aws_iam_role.role_lambda_ghdispatcher.name
+  policy_arn = aws_iam_policy.policy_lambda_ghdispatcher_secrets.arn
+}
+
+resource "aws_lambda_function" "lambda_ghdispatcher" {
+  provider      = aws.lambda_eu_west_1
+  function_name = locals.lambda_ghdispatcher_name
+  handler       = "handler.lambda_handler"
+  runtime       = "python3.12"
+  role          = aws_iam_role.role_lambda_ghdispatcher.arn
+  filename      = data.archive_file.zip_lambda_ghdispatcher.output_path
+  timeout       = 10
+  environment {
+    variables = {
+      GITHUB_ORG   = "test"
+      GITHUB_REPO  = "test"
+    }
+  }
+}
+
+resource "aws_lambda_function_url" "lambdaurl_ghdispatcher" {
+  provider           = aws.lambda_eu_west_1
+  function_name      = aws_lambda_function.lambda_ghdispatcher.function_name
+  authorization_type = "NONE"
 }
 
 # Hostedzone

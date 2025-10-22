@@ -14,3 +14,8 @@ terraform {
 
 provider "aws" {
 }
+
+provider "aws" {
+  alias  = "lambda_eu_west_1"
+  region = "eu-west-1"
+}

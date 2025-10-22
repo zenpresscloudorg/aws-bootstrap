@@ -1,14 +1,19 @@
 
 locals {
   # Secrets
-  secret_keypair_main = "${var.project_name}-bootstrap-${var.project_environment}-secret-keypair-main"
+  secret_keypair_main_name = "${var.project_name}-bootstrap-${var.project_environment}-secret-keypair-main"
 
   # S3
-  s3_tfstate = "${var.project_name}-bootstrap-${var.project_environment}-s3-tfstate"
+  s3_tfstate_name = "${var.project_name}-bootstrap-${var.project_environment}-s3-tfstate"
 
   # Roles & policies
-  role_ghrunner   = "${var.project_name}-${var.project_environment}-bootstrap-role-ghrunner"
-  policy_ghrunner = "${var.project_name}-bootstrap-${var.project_environment}-policy-runner"
+  role_ec2_ghrunner_name   = "${var.project_name}-${var.project_environment}-bootstrap-role-ec2-ghrunner"
+  policy_ec2_ghrunner_name = "${var.project_name}-bootstrap-${var.project_environment}-policy-ec2-ghrunner"
+  role_lambda_ghdispatcher_name   = "${var.project_name}-${var.project_environment}-bootstrap-role-lambda-ghdispatcher"
+  policy_lambda_ghdispatcher_name = "${var.project_name}-bootstrap-${var.project_environment}-bootstrap-policy-lambda-ghdispatcher"
+
+  # Lambdas
+  lambda_ghdispatcher_name = "${var.project_name}-bootstrap-${var.project_environment}-lambda-ghdispatcher"
 
   # Instances
   instances_ami        = "ami-0cd0767d8ed6ad0a9"
