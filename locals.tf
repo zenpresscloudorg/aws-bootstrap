@@ -2,6 +2,7 @@
 locals {
   # Secrets
   secret_keypair_main_name = "${var.project_name}-bootstrap-${var.project_environment}-secret-keypair-main"
+  secret_ghdispatcher_name = "${var.project_name}-bootstrap-${var.project_environment}-secret-ghdispatcher"
 
   # S3
   s3_tfstate_name = "${var.project_name}-bootstrap-${var.project_environment}-s3-tfstate"

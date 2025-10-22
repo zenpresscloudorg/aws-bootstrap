@@ -26,17 +26,16 @@ resource "aws_secretsmanager_secret" "secret_keypair_main" {
   name        = local.secret_keypair_main_name
 }
 
+resource "aws_secretsmanager_secret" "secret_ghdispatcher" {
+  name        = local.secret_ghdispatcher_name
+}
+
 resource "aws_secretsmanager_secret_version" "secretvalue_keypair_main" {
   secret_id     = aws_secretsmanager_secret.secret_keypair_main.id
   secret_string = jsonencode({
     keypair_private = tls_private_key.keypair.private_key_pem
     keypair_public = tls_private_key.keypair.public_key_openssh
   })
-}
-
-resource "aws_secretsmanager_secret" "secret_ghdispatcher" {
-  name        = "github-token"
-  description = "GitHub token para la función Lambda dispatcher"
 }
 
 resource "aws_secretsmanager_secret_version" "secretvalue_ghdispatcher" {
