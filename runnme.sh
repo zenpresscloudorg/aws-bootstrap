@@ -1,9 +1,15 @@
+
 #!/bin/bash
 
-# Read vars.json
+# Vars json
+VARS_JSON_PATH="$(dirname "$0")/vars.json"
+if [ ! -f "$VARS_JSON_PATH" ]; then
+	echo "ERROR: vars.json file does not exist. Cancelling run."
+	exit 1
+fi
 
-project_name=$(jq -r '.project_name' "$(dirname "$0")/vars.json")
-project_environment=$(jq -r '.project_environment' "$(dirname "$0")/vars.json")
+project_name=$(jq -r '.project_name' "$VARS_JSON_PATH")
+project_environment=$(jq -r '.project_environment' "$VARS_JSON_PATH")
 aws_region=${AWS_REGION}
 
 # Formato del nombre del bucket

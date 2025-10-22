@@ -5,15 +5,18 @@ variable "project_name" {
 }
 
 variable "project_environment" {
-  description = "Project environment (dev, staging, prod)"
+  description = "Project environment (dev, prod)"
   type        = string
+  validation {
+    condition     = contains(["dev", "prod"], var.project_environment)
+    error_message = "project_environment must be either 'dev' or 'prod'."
+  }
 }
 
 # VPC variables
 variable "vpc_cidr" {
   description = "CIDR block for the VPC"
   type        = string
-  default     = "10.0.0.0/16"
 }
 
 variable "vpc_ipv6_enable" {
@@ -30,11 +33,13 @@ variable "vpc_subnet_private_tskey" {
 variable "hostedzones_public" {
   description = "List of public DNS zones"
   type        = list(string)
+  default     = []
 }
 
 variable "hostedzones_private" {
   description = "List of private DNS zones"
   type        = list(string)
+  default     = []
 }
 
 variable "tailscale_auth_key" {
