@@ -22,7 +22,7 @@ locals {
   instances_type       = "t4g.nano"
   instances_disk       = "gp3"
   keypair_main_name    = "${var.project_name}-bootstrap-${var.project_environment}-keypair-main"
-  instance_natgw_name  = "${var.project_name}-bootstrap-${var.project_environment}-ec2-natgw"
+  ec2_natwg_name  = "${var.project_name}-bootstrap-${var.project_environment}-ec2-natgw"
   ebs_natgw_name       = "${var.project_name}-bootstrap-${var.project_environment}-ebs-natgw"
   instance_ghrunner_name = "${var.project_name}-bootstrap-${var.project_environment}-ec2-ghrunner"
   ebs_ghrunner_name    = "${var.project_name}-bootstrap-${var.project_environment}-ebs-ghrunner"

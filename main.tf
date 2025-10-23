@@ -113,7 +113,7 @@ resource "aws_security_group" "sg_test" {
 
 resource "aws_security_group" "sg_natgw" {
   name        = local.sg_natgw_name
-  description = "instance_natgw"
+  description = "ec2_natwg"
   vpc_id      = aws_vpc.main.id
   ingress {
     from_port   = 0
@@ -152,14 +152,14 @@ resource "aws_security_group" "sg_ghrunner" {
 resource "local_file" "userdata_natgw" {
   content  = templatefile("${path.module}/src/userdata/natgw.sh", {
     AUTH_KEY         = var.tailscale_auth_key,
-    HOSTNAME         = local.instance_natgw_name,
+    HOSTNAME         = local.ec2_natwg_name,
     ADVERTISE_ROUTES = join(",", local.private_subnets_cidr),
     DNSMASQ_SERVERS  = local.dnsmasq_servers
   })
   filename = "${path.module}/tmp/userdata_natgw_rendered.sh"
 }
 
-resource "aws_instance" "instance_natgw" {
+resource "aws_instance" "ec2_natwg" {
   ami                    = local.instances_ami
   instance_type          = local.instances_type
   key_name               = aws_key_pair.aws_keypair.key_name
@@ -173,7 +173,7 @@ resource "aws_instance" "instance_natgw" {
     }
   }
   tags = {
-     Name = local.instance_natgw_name
+     Name = local.ec2_natwg_name
   }
   source_dest_check = false
 }
@@ -216,7 +216,7 @@ resource "aws_route_table" "rt_private" {
 resource "aws_route" "route_private_main" {
   route_table_id         = aws_route_table.rt_private.id
   destination_cidr_block = "0.0.0.0/0"
-  instance_id            = aws_instance.instance_natgw.id
+  network_interface_id   = aws_instance.ec2_natwg.primary_network_interface_id
 }
 
 resource "aws_route_table_association" "rtassoc_private" {
