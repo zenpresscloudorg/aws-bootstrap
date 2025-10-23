@@ -152,7 +152,7 @@ resource "aws_security_group" "sg_ghrunner" {
 resource "local_file" "userdata_natgw" {
   content  = templatefile("${path.module}/src/userdata/natgw.sh", {
     AUTH_KEY         = var.tailscale_auth_key,
-      HOSTNAME         = local.instance_natgw_name,
+    HOSTNAME         = local.instance_natgw_name,
     ADVERTISE_ROUTES = join(",", local.private_subnets_cidr),
     DNSMASQ_SERVERS  = local.dnsmasq_servers
   })
@@ -195,7 +195,7 @@ resource "aws_route_table" "rt_public" {
 }
 
 resource "aws_route" "route_public_main" {
-  route_table_id         = aws_route_table.public.id
+  route_table_id         = aws_route_table.rt_public.id
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.igw_main.id
 }
@@ -214,7 +214,7 @@ resource "aws_route_table" "rt_private" {
 }
 
 resource "aws_route" "route_private_main" {
-  route_table_id         = aws_route_table.private.id
+  route_table_id         = aws_route_table.rt_private.id
   destination_cidr_block = "0.0.0.0/0"
   instance_id            = aws_instance.instance_natgw.id
 }
@@ -222,7 +222,7 @@ resource "aws_route" "route_private_main" {
 resource "aws_route_table_association" "rtassoc_private" {
   for_each = aws_subnet.private_subnet
   subnet_id      = each.value.id
-  route_table_id = aws_route_table.private.id
+  route_table_id = aws_route_table.rt_private.id
 }
 
 # Runner
@@ -280,7 +280,7 @@ resource "aws_iam_instance_profile" "ghrunner" {
 resource "local_file" "userdata_ghrunner" {
   content  = templatefile("${path.module}/src/userdata/ghrunner.sh", {
     GH_ORG = var.gh_org
-    Gh_RUNNER_TOKEN = var.gh_runner_token
+    GH_RUNNER_TOKEN = var.gh_runner_token
     GH_RUNNER_NAME = local.instance_ghrunner_name
   })
   filename = "${path.module}/tmp/userdata_ghrunner_rendered.sh"
