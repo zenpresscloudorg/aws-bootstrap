@@ -24,7 +24,7 @@ locals {
   keypair_main_name    = "${var.project_name}-bootstrap-${var.project_environment}-keypair-main"
   ec2_natwg_name  = "${var.project_name}-bootstrap-${var.project_environment}-ec2-natgw"
   ebs_natgw_name       = "${var.project_name}-bootstrap-${var.project_environment}-ebs-natgw"
-  instance_ghrunner_name = "${var.project_name}-bootstrap-${var.project_environment}-ec2-ghrunner"
+  ec2_ghrunner_name = "${var.project_name}-bootstrap-${var.project_environment}-ec2-ghrunner"
   ebs_ghrunner_name    = "${var.project_name}-bootstrap-${var.project_environment}-ebs-ghrunner"
 
   # Instanceprofiles

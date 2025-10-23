@@ -281,7 +281,7 @@ resource "local_file" "userdata_ghrunner" {
   content  = templatefile("${path.module}/src/userdata/ghrunner.sh", {
     GH_ORG = var.gh_org
     GH_RUNNER_TOKEN = var.gh_runner_token
-    GH_RUNNER_NAME = local.instance_ghrunner_name
+    GH_RUNNER_NAME = local.ec2_ghrunner_name
   })
   filename = "${path.module}/tmp/userdata_ghrunner_rendered.sh"
 }
@@ -301,7 +301,7 @@ resource "aws_instance" "instance_ghrunner" {
     }
   }
   tags = {
-     Name = local.instance_ghrunner_name
+     Name = local.ec2_ghrunner_name
   }
 }
 
@@ -372,7 +372,7 @@ data "archive_file" "zip_lambda_ghdispatcher" {
 }
 
 resource "aws_iam_role" "role_lambda_ghdispatcher" {
-  name               = locals.role_lambda_ghdispatcher_name
+  name               = local.role_lambda_ghdispatcher_name
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
