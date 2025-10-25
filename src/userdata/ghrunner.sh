@@ -57,9 +57,9 @@ sudo rm -f "$RUNNER_HOME/actions-runner-linux-$ARCH-$RUNNER_VERSION.tar.gz"
 sudo chown -R "$RUNNER_USER:$RUNNER_USER" "$RUNNER_HOME"
 sudo -u "$RUNNER_USER" "$RUNNER_HOME/config.sh" \
 	--unattended \
-	--url https://github.com/{{ GH_ORG }} \
-	--token {{ GH_RUNNER_TOKEN }} \
-	--name {{ GH_RUNNER_NAME }} \
-	--labels {{ GH_RUNNER_NAME }}
+	--url "https://github.com/${GH_ORG}" \
+	--token "${GH_RUNNER_TOKEN}" \
+	--name "${GH_RUNNER_NAME}" \
+	--labels "${GH_RUNNER_NAME}"
 sudo bash -c "cd '$RUNNER_HOME' && ./svc.sh install '$RUNNER_USER'"
 sudo bash -c "cd '$RUNNER_HOME' && ./svc.sh start"
