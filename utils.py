@@ -7,10 +7,19 @@ from cryptography.hazmat.backends import default_backend
 import os
 import random
 import string
+import os
 
-def load_vars_json(path: str) -> dict:
+def load_vars_json(
+    path: str
+) -> dict:
     """
-    Loads the content of vars.json as a dictionary and validates required keys.
+    Carga el contenido de vars.json como diccionario y valida las claves requeridas.
+
+    Parámetros:
+        path (str): Ruta al archivo vars.json.
+
+    Retorna:
+        dict: Diccionario con los datos cargados.
     """
     import os
     required_keys = [
@@ -38,16 +47,28 @@ def load_vars_json(path: str) -> dict:
 def validate_account_info(
     account_info: dict
 ):
+    """
+    Valida que el diccionario account_info contenga las claves requeridas.
+
+    Parámetros:
+        account_info (dict): Diccionario con información de la cuenta.
+    """
     required_keys = ["account", "environment", "region"]
     missing = [k for k in required_keys if k not in account_info]
     if missing:
-        raise KeyError(f"Missing required keys in account_info: {missing}")
+        raise KeyError(f"Faltan claves requeridas en account_info: {missing}")
 
 def get_availability_zones(
     region: str
 ) -> list:
     """
-    Returns a list of availability zones for the given AWS region.
+    Devuelve una lista de zonas de disponibilidad para la región AWS indicada.
+
+    Parámetros:
+        region (str): Región de AWS.
+
+    Retorna:
+        list: Lista de nombres de zonas disponibles.
     """
     ec2 = boto3.client("ec2", region_name=region)
     try:
@@ -58,23 +79,27 @@ def get_availability_zones(
     except ClientError as e:
         raise Exception(f"Error getting availability zones: {e}")
 
-def render_user_data(template_path, output_path, context):
+def render_user_data(
+    template_path,
+    context
+):
     """
     Renderiza un archivo de user-data usando un template y un diccionario de variables.
-    Utiliza string.Template para reemplazo simple.
+    Utiliza string.Template para el reemplazo de variables.
+    
+    Parámetros:
+        template_path (str): Ruta al archivo de template.
+        context (dict): Diccionario de variables para el template.
+    
+    Retorna:
+        str: El contenido renderizado como string.
     """
-    import os
     from string import Template
     with open(template_path, "r") as f:
         template_content = f.read()
     template = Template(template_content)
     rendered = template.safe_substitute(context)
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "w") as f:
-        f.write(rendered)
-    return output_path
-
-
+    return rendered
 
 def load_aws_key_pair(
     account_info: dict,
@@ -82,8 +107,15 @@ def load_aws_key_pair(
     usage: str
 ) -> str | None:
     """
-    Finds the first AWS EC2 key pair matching the given tags.
-    Returns the key name if found, else None.
+    Busca el primer key pair de AWS EC2 que coincida con los tags indicados.
+
+    Parámetros:
+        account_info (dict): Información de la cuenta.
+        product (str): Producto.
+        usage (str): Uso.
+
+    Retorna:
+        str | None: Nombre del key pair si existe, None si no existe.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
@@ -104,11 +136,12 @@ def load_aws_key_pair(
         raise Exception(f"Error searching key pairs by tags: {e}")
 
 
-def generate_key_pair(
-) -> tuple[str, str]:
+def generate_key_pair() -> tuple[str, str]:
     """
-    Generates an RSA key pair in SSH format.
-    Returns a JSON string with private and public keys.
+    Genera un par de claves RSA en formato SSH.
+
+    Retorna:
+        tuple[str, str]: JSON con las claves privada y pública.
     """
     private_key = rsa.generate_private_key(
         public_exponent=65537,
@@ -138,8 +171,16 @@ def create_aws_key_pair(
     key_material: str = None
 ) -> str:
     """
-    Creates a new AWS EC2 key pair with a random name and required tags.
-    Returns the created key name.
+    Crea un nuevo key pair de AWS EC2 con nombre aleatorio y tags requeridos.
+
+    Parámetros:
+        account_info (dict): Información de la cuenta.
+        product (str): Producto.
+        usage (str): Uso.
+        key_material (str, opcional): Material de la clave.
+
+    Retorna:
+        str: Nombre del key pair creado.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])

@@ -13,4 +13,4 @@ service iptables save
 systemctl enable iptables
 systemctl start iptables
 sudo systemctl enable --now tailscaled
-sudo tailscale up --auth-key="${AUTH_KEY}" --hostname="${HOSTNAME}" --advertise-routes="${ADVERTISE_ROUTES}"
+sudo tailscale up --auth-key="$AUTH_KEY" --hostname="$HOSTNAME" --advertise-routes="$ADVERTISE_ROUTES"

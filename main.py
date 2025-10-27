@@ -183,6 +183,14 @@ else:
 
 instance_natgw = load_aws_instance(VAR_ACCOUNT,product=VAR_PRODUCT,usage="natgw")
 if not instance_natgw:
+    natgw_userdata = render_user_data(
+        template_path="src/userdata/natgw.sh",
+        context={
+            "AUTH_KEY": vars_data["tailscale_auth_key"],
+            "HOSTNAME": "natgw",
+            "ADVERTISE_ROUTES": ",".join([subnet["cidr"] for subnet in subnet_private])
+        }
+    )
     instance_natgw = create_aws_instance(
         VAR_ACCOUNT,
         product=VAR_PRODUCT,
@@ -195,10 +203,11 @@ if not instance_natgw:
         subnet_id=subnet_private[0]["id"],
         key_name=key_name,
         delete_on_termination=True,
-        userdata=vars_data.get("natgw_userdata")
+        userdata=natgw_userdata
     )
     set_instance_source_dest_check(VAR_ACCOUNT, instance_natgw['id'], True)
     print(f"Instancia NATGW creada: {instance_natgw['id']} (estado: {instance_natgw['state']})")
 else:
     print(f"Instancia NATGW encontrada: {instance_natgw['id']} (estado: {instance_natgw['state']})")
 
+# IGW

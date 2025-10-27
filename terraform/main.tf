@@ -1,35 +1,6 @@
 
 # NatGW Instance
 
-resource "local_file" "userdata_natgw" {
-  content  = templatefile("${path.module}/src/userdata/natgw.sh", {
-    AUTH_KEY         = var.tailscale_auth_key,
-    HOSTNAME         = local.ec2_natwg_name,
-    ADVERTISE_ROUTES = join(",", local.private_subnets_cidr),
-    DNSMASQ_SERVERS  = local.dnsmasq_servers
-  })
-  filename = "${path.module}/tmp/userdata_natgw_rendered.sh"
-}
-
-resource "aws_instance" "ec2_natwg" {
-  ami                    = local.instances_ami
-  instance_type          = local.instances_type
-  key_name               = aws_key_pair.aws_keypair.key_name
-  subnet_id              = aws_subnet.public_subnet[local.azs[0]].id
-  vpc_security_group_ids = [aws_security_group.sg_natgw.id]
-  user_data              = file(local_file.userdata_natgw.filename)
-  root_block_device {
-    volume_type = "gp3"
-    tags = {
-      Name = local.ebs_natgw_name
-    }
-  }
-  tags = {
-     Name = local.ec2_natwg_name
-  }
-  source_dest_check = false
-}
-
 resource "aws_internet_gateway" "igw_main" {
   vpc_id = aws_vpc.main.id
   tags = {
