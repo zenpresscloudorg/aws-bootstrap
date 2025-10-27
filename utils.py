@@ -642,12 +642,14 @@ def create_aws_internet_gateway(
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
+    name = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
     tags = [
         {"Key": "account", "Value": account_info["account"]},
         {"Key": "environment", "Value": account_info["environment"]},
         {"Key": "region", "Value": account_info["region"]},
         {"Key": "product", "Value": product},
-        {"Key": "usage", "Value": usage}
+        {"Key": "usage", "Value": usage},
+        {"Key": "Name", "Value": name}
     ]
     try:
         response = ec2.create_internet_gateway(
@@ -664,3 +666,112 @@ def create_aws_internet_gateway(
         return igw_id
     except ClientError as e:
         raise Exception(f"Error creando IGW: {e}")
+
+def ensure_aws_route_table(
+    account_info: dict,
+    product: str,
+    usage: str,
+    vpc_id: str
+) -> str | None:
+    """
+    Checks if a Route Table exists in AWS matching the given tags and vpc_id.
+    Returns the route_table_id if it exists, None otherwise.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    filters = [
+        {"Name": "tag:account", "Values": [account_info["account"]]},
+        {"Name": "tag:environment", "Values": [account_info["environment"]]},
+        {"Name": "tag:region", "Values": [account_info["region"]]},
+        {"Name": "tag:product", "Values": [product]},
+        {"Name": "tag:usage", "Values": [usage]},
+        {"Name": "vpc-id", "Values": [vpc_id]}
+    ]
+    try:
+        response = ec2.describe_route_tables(Filters=filters)
+        rts = response.get("RouteTables", [])
+        if rts:
+            return rts[0]["RouteTableId"]
+        return None
+    except ClientError as e:
+        raise Exception(f"Error checking Route Table: {e}")
+
+def create_aws_route_table(
+    account_info: dict,
+    product: str,
+    usage: str,
+    vpc_id: str
+) -> str:
+    """
+    Creates a Route Table in AWS with the required tags.
+    Returns the created route_table_id.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    name = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    tags = [
+        {"Key": "account", "Value": account_info["account"]},
+        {"Key": "environment", "Value": account_info["environment"]},
+        {"Key": "region", "Value": account_info["region"]},
+        {"Key": "product", "Value": product},
+        {"Key": "usage", "Value": usage},
+        {"Key": "Name", "Value": name}
+    ]
+    try:
+        response = ec2.create_route_table(VpcId=vpc_id)
+        rt_id = response["RouteTable"]["RouteTableId"]
+        ec2.create_tags(Resources=[rt_id], Tags=tags)
+        return rt_id
+    except ClientError as e:
+        raise Exception(f"Error creating Route Table: {e}")
+
+def ensure_aws_route(
+    account_info: dict,
+    route_table_id: str,
+    destination_cidr_block: str
+) -> bool:
+    """
+    Checks if a Route exists in the given Route Table with the specified destination.
+    Returns True if it exists, False otherwise.
+    """
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    try:
+        response = ec2.describe_route_tables(RouteTableIds=[route_table_id])
+        rts = response.get("RouteTables", [])
+        if not rts:
+            return False
+        for route in rts[0].get("Routes", []):
+            if route.get("DestinationCidrBlock") == destination_cidr_block:
+                return True
+        return False
+    except ClientError as e:
+        raise Exception(f"Error checking Route: {e}")
+
+def create_aws_route(
+    account_info: dict,
+    route_table_id: str,
+    destination_cidr_block: str,
+    gateway_id: str = None,
+    instance_id: str = None,
+    nat_gateway_id: str = None
+) -> bool:
+    """
+    Creates a Route in the specified Route Table. You can specify gateway, instance, or NAT GW.
+    Returns True if creation was successful.
+    """
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    params = {
+        "RouteTableId": route_table_id,
+        "DestinationCidrBlock": destination_cidr_block
+    }
+    if gateway_id:
+        params["GatewayId"] = gateway_id
+    if instance_id:
+        params["InstanceId"] = instance_id
+    if nat_gateway_id:
+        params["NatGatewayId"] = nat_gateway_id
+    try:
+        ec2.create_route(**params)
+        return True
+    except ClientError as e:
+        raise Exception(f"Error creating Route: {e}")
