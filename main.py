@@ -13,10 +13,9 @@ except Exception as e:
 
 # SSH Key
 
-keypairs = find_aws_key_pairs_by_tag("product", VAR_PRODUCT, vars_data["account_region"])
-if keypairs:
-    # If exists, print the name of the first key pair
-    print(keypairs[0]["key_name"])
+# Search for key pair by both Product and Usage tags
+keypair = find_aws_key_pair_by_tags({"product": VAR_PRODUCT, "Usage": "main"}, vars_data["account_region"])
+if keypair:
+    print(keypair["key_name"])
 else:
-    # If not exists, generate a new key pair and print the JSON
     print(generate_key_pair())

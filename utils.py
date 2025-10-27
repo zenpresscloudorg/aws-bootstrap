@@ -33,32 +33,26 @@ def load_vars_json(path: str = "vars.json") -> dict:
     return data
 
 
-def load_aws_key_pair(tag_key: str, tag_value: str, region: str) -> list[dict]:
+def find_aws_key_pair_by_tags(tags: dict, region: str) -> dict | None:
     """
-    Search AWS EC2 key pairs by tag.
-    Args:
-        tag_key (str): Tag key (example: 'Environment')
-        tag_value (str): Tag value (example: 'prod')
-        region (str): AWS region
-    Returns:
-        list[dict]: List of key pairs matching the tag
+    Search for the first AWS EC2 key pair matching multiple tags.
     """
     ec2 = boto3.client("ec2", region_name=region)
     try:
-        response = ec2.describe_key_pairs(
-            Filters=[{"Name": f"tag:{tag_key}", "Values": [tag_value]}]
-        )
-        result = []
-        for key_info in response.get("KeyPairs", []):
-            result.append({
+        filters = [{"Name": f"tag:{k}", "Values": [v]} for k, v in tags.items()]
+        response = ec2.describe_key_pairs(Filters=filters)
+        keypairs = response.get("KeyPairs", [])
+        if keypairs:
+            key_info = keypairs[0]
+            return {
                 "key_name": key_info.get("KeyName"),
                 "fingerprint": key_info.get("KeyFingerprint"),
                 "key_type": key_info.get("KeyType"),
                 "tags": key_info.get("Tags", [])
-            })
-        return result
+            }
+        return None
     except ClientError as e:
-        raise Exception(f"Error searching key pairs by tag: {e}")
+        raise Exception(f"Error searching key pairs by tags: {e}")
 
 
 def generate_key_pair() -> tuple[str, str]:
