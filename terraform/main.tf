@@ -1,44 +1,4 @@
 
-
-# Security groups
-
-
-resource "aws_security_group" "sg_natgw" {
-  name        = local.sg_natgw_name
-  description = "ec2_natwg"
-  vpc_id      = aws_vpc.main.id
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = local.private_subnets_cidr
-  }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = {
-    Name = local.sg_natgw_name
-  }
-}
-
-resource "aws_security_group" "sg_ghrunner" {
-  name        = local.sg_ghrunner_name
-  description = "ec2-ghrunner"
-  vpc_id      = aws_vpc.main.id
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = {
-    Name = local.sg_ghrunner_name
-  }
-}
-
 # NatGW Instance
 
 resource "local_file" "userdata_natgw" {

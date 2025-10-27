@@ -16,6 +16,10 @@ try:
         "region": vars_data["account_region"]
     }
     VAR_PRODUCT = "bootstrap"
+    VAR_INSTANCE_MODEL = "t4g.nano"
+    VAR_INSTANCE_AMI = "ami-0cd0767d8ed6ad0a9"
+    VAR_INSTANCE_DISK_SIZE = "8"
+    VAR_INSTANCE_DISK_TYPE = "gp3"
 except Exception as e:
     print(f"Error loading vars.json: {e}")
     exit(1)
@@ -174,3 +178,25 @@ if not sg_ghrunner_id:
     print(f"Security Group GHRUNNER created: {sg_ghrunner_id}")
 else:
     print(f"Security Group GHRUNNER found: {sg_ghrunner_id}")
+
+# Natgw Instance
+
+instance_natgw = load_aws_instance(VAR_ACCOUNT,product=VAR_PRODUCT,usage="natgw")
+if not instance_natgw:
+    instance_natgw = create_aws_instance(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage="natgw",
+        ami=VAR_INSTANCE_AMI,
+        instance_type=VAR_INSTANCE_MODEL,
+        disk_type=VAR_INSTANCE_DISK_TYPE,
+        disk_size=VAR_INSTANCE_DISK_SIZE,
+        sg_id=sg_natgw_id,
+        subnet_id=subnet_private[0]["id"],
+        key_name=key_name,
+        delete_on_termination=True,
+        userdata=vars_data.get("natgw_userdata")
+    )
+    print(f"Instancia NATGW creada: {instance_natgw['id']} (estado: {instance_natgw['state']})")
+else:
+    print(f"Instancia NATGW encontrada: {instance_natgw['id']} (estado: {instance_natgw['state']})")

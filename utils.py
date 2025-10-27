@@ -441,3 +441,71 @@ def create_aws_security_group(
     except ClientError as e:
         raise Exception(f"Error creating Security Group: {e}")
 
+
+def load_aws_instance(account_info, product, usage):
+    """
+    Busca una instancia EC2 por tags (Product, Usage).
+    Devuelve un dict con InstanceId y estado si existe, o None si no existe.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client('ec2', region_name=account_info["region"])
+    filters = [
+        {"Name": "tag:product", "Values": [product]},
+        {"Name": "tag:usage", "Values": [usage]}
+    ]
+    resp = ec2.describe_instances(Filters=filters)
+    for reservation in resp.get("Reservations", []):
+        for instance in reservation.get("Instances", []):
+            if instance["State"]["Name"] != "terminated":
+                return {
+                    "id": instance["InstanceId"],
+                    "state": instance["State"]["Name"]
+                }
+    return None
+
+def create_aws_instance(account_info, product, usage, ami, instance_type, disk_type, disk_size, sg_id, subnet_id, key_name, delete_on_termination=True, userdata=None):
+    """
+    Crea una instancia EC2 con los parámetros indicados.
+    instance_type: tipo de instancia (ej: t3.micro)
+    delete_on_termination: bool para el disco raíz
+    userdata: opcional
+    Devuelve un dict con InstanceId y estado.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client('ec2', region_name=account_info["region"])
+    block_device = [{
+        "DeviceName": "/dev/xvda",
+        "Ebs": {
+            "VolumeSize": disk_size,
+            "VolumeType": disk_type,
+            "DeleteOnTermination": delete_on_termination
+        }
+    }]
+    params = {
+        "ImageId": ami,
+        "InstanceType": instance_type,
+        "KeyName": key_name,
+        "SecurityGroupIds": [sg_id],
+        "SubnetId": subnet_id,
+        "BlockDeviceMappings": block_device,
+        "TagSpecifications": [{
+            "ResourceType": "instance",
+            "Tags": [
+                {"Key": "product", "Value": product},
+                {"Key": "usage", "Value": usage}
+            ]
+        }]
+    }
+    if userdata:
+        params["UserData"] = userdata
+    resp = ec2.run_instances(
+        MinCount=1,
+        MaxCount=1,
+        **params
+    )
+    instance = resp["Instances"][0]
+    return {
+        "id": instance["InstanceId"],
+        "state": instance["State"]["Name"]
+    }
+
