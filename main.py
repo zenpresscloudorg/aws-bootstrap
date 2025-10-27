@@ -21,37 +21,65 @@ except Exception as e:
 
 # SSH Key
 
-key_name = load_aws_key_pair(VAR_ACCOUNT, product=VAR_PRODUCT, usage="main")
-if key_name:
-    print(key_name)
-else:
+key_name = load_aws_key_pair(
+    VAR_ACCOUNT,
+    product=VAR_PRODUCT,
+    usage="main"
+)
+
+if not key_name:
     key_material = generate_key_pair()
-    key_name = create_aws_key_pair(VAR_ACCOUNT, product=VAR_PRODUCT, usage="main", key_material=key_material)
-    print(key_name)
+    key_name = create_aws_key_pair(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage="main",
+        key_material=key_material
+    )
+
+print(key_name)
 
 # Secrets
 
-secret_keypair = load_aws_secret(VAR_ACCOUNT, product=VAR_PRODUCT, usage="keypair")
-secret_ghdispatcher = load_aws_secret(VAR_ACCOUNT, product=VAR_PRODUCT, usage="ghdispatcher")
-
-if secret_keypair:
-    print(f"Secret found: {secret_keypair['name']} (ARN: {secret_keypair['arn']})")
-else:
-    secret_keypair = create_aws_secret(VAR_ACCOUNT, product=VAR_PRODUCT, usage="keypair", secret_value=key_material)
+secret_keypair = load_aws_secret(
+    VAR_ACCOUNT,
+    product=VAR_PRODUCT,
+    usage="keypair"
+)
+if not secret_keypair:
+    secret_keypair = create_aws_secret(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage="keypair",
+        secret_value=key_material
+    )
     print(f"Secret created: {secret_keypair['name']} (ARN: {secret_keypair['arn']})")
-
-if secret_ghdispatcher:
-    print(f"Secret found: {secret_ghdispatcher['name']} (ARN: {secret_ghdispatcher['arn']})")
 else:
-    secret_ghdispatcher = create_aws_secret(VAR_ACCOUNT, product=VAR_PRODUCT, usage="ghdispatcher", secret_value=''.join(random.choices(string.ascii_letters + string.digits, k=12)))
+    print(f"Secret found: {secret_keypair['name']} (ARN: {secret_keypair['arn']})")
+
+secret_ghdispatcher = load_aws_secret(
+    VAR_ACCOUNT,
+    product=VAR_PRODUCT,
+    usage="ghdispatcher"
+)
+if not secret_ghdispatcher:
+    secret_ghdispatcher = create_aws_secret(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage="ghdispatcher",
+        secret_value=''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    )
     print(f"Secret created: {secret_ghdispatcher['name']} (ARN: {secret_ghdispatcher['arn']})")
+else:
+    print(f"Secret found: {secret_ghdispatcher['name']} (ARN: {secret_ghdispatcher['arn']})")
 
 # VPC
 
-vpc_id = load_aws_vpc(VAR_ACCOUNT, product=VAR_PRODUCT, usage="main")
-if vpc_id:
-    print(f"VPC found: {vpc_id}")
-else:
+vpc_id = load_aws_vpc(
+    VAR_ACCOUNT,
+    product=VAR_PRODUCT,
+    usage="main"
+)
+if not vpc_id:
     vpc_id = create_aws_vpc(
         VAR_ACCOUNT,
         product=VAR_PRODUCT,
@@ -60,3 +88,5 @@ else:
         ipv6_enable=vars_data.get("vpc_ipv6_enable", False)
     )
     print(f"VPC created: {vpc_id}")
+else:
+    print(f"VPC found: {vpc_id}")
