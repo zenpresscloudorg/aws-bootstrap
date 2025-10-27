@@ -217,3 +217,7 @@ if not igw_id:
     igw_id = create_aws_internet_gateway(VAR_ACCOUNT, product=VAR_PRODUCT,usage="main", vpc_id)
     print(f"Created IGW: {igw_id}")
     return igw_id
+
+# Routes
+
+# Routetables
