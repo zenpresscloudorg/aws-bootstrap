@@ -197,6 +197,8 @@ if not instance_natgw:
         delete_on_termination=True,
         userdata=vars_data.get("natgw_userdata")
     )
+    set_instance_source_dest_check(VAR_ACCOUNT, instance_natgw['id'], True)
     print(f"Instancia NATGW creada: {instance_natgw['id']} (estado: {instance_natgw['state']})")
 else:
     print(f"Instancia NATGW encontrada: {instance_natgw['id']} (estado: {instance_natgw['state']})")
+

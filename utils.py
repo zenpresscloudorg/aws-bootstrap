@@ -8,9 +8,7 @@ import os
 import random
 import string
 
-def load_vars_json(
-    path: str = "vars.json"
-) -> dict:
+def load_vars_json(path: str) -> dict:
     """
     Loads the content of vars.json as a dictionary and validates required keys.
     """
@@ -59,6 +57,24 @@ def get_availability_zones(
         return [az["ZoneName"] for az in response["AvailabilityZones"] if az["State"] == "available"]
     except ClientError as e:
         raise Exception(f"Error getting availability zones: {e}")
+
+def render_user_data(template_path, output_path, context):
+    """
+    Renderiza un archivo de user-data usando un template y un diccionario de variables.
+    Utiliza string.Template para reemplazo simple.
+    """
+    import os
+    from string import Template
+    with open(template_path, "r") as f:
+        template_content = f.read()
+    template = Template(template_content)
+    rendered = template.safe_substitute(context)
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w") as f:
+        f.write(rendered)
+    return output_path
+
+
 
 def load_aws_key_pair(
     account_info: dict,
@@ -473,12 +489,19 @@ def create_aws_instance(account_info, product, usage, ami, instance_type, disk_t
     """
     validate_account_info(account_info)
     ec2 = boto3.client('ec2', region_name=account_info["region"])
+    name_id = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
     block_device = [{
         "DeviceName": "/dev/xvda",
         "Ebs": {
             "VolumeSize": disk_size,
             "VolumeType": disk_type,
-            "DeleteOnTermination": delete_on_termination
+            "DeleteOnTermination": delete_on_termination,
+            "TagSpecifications": [{
+                "ResourceType": "volume",
+                "Tags": [
+                    {"Key": "Name", "Value": name_id}
+                ]
+            }]
         }
     }]
     params = {
@@ -492,7 +515,8 @@ def create_aws_instance(account_info, product, usage, ami, instance_type, disk_t
             "ResourceType": "instance",
             "Tags": [
                 {"Key": "product", "Value": product},
-                {"Key": "usage", "Value": usage}
+                {"Key": "usage", "Value": usage},
+                {"Key": "Name", "Value": name_id}
             ]
         }]
     }
@@ -508,4 +532,16 @@ def create_aws_instance(account_info, product, usage, ami, instance_type, disk_t
         "id": instance["InstanceId"],
         "state": instance["State"]["Name"]
     }
+
+def set_instance_source_dest_check(account_info, instance_id, value: bool):
+    """
+    Aplica el parámetro SourceDestCheck a una instancia EC2.
+    value: True o False
+    """
+    ec2 = boto3.client('ec2', region_name=account_info["region"])
+    ec2.modify_instance_attribute(
+        InstanceId=instance_id,
+        SourceDestCheck={"Value": value}
+    )
+
 
