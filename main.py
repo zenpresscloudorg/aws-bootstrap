@@ -77,22 +77,19 @@ else:
 
 # Subnet
 
-subnet_public_ids = []
-subnet_private_ids = []
 vpc_network = ipaddress.IPv4Network(vars_data["vpc_cidr"])
 az_list = get_availability_zones(VAR_ACCOUNT["region"])
-
 for i, az in enumerate(az_list):
 
     # Public subnet
-    subnet_id = load_aws_subnet(
+    subnet_public = load_aws_subnet(
         VAR_ACCOUNT,
         product=VAR_PRODUCT,
         usage=f"public-{az}",
         vpc_id=vpc_id
     )
-    if not subnet_id:
-        subnet_id = create_aws_subnet(
+    if not subnet_public:
+        subnet_public = create_aws_subnet(
             VAR_ACCOUNT,
             product=VAR_PRODUCT,
             usage=f"public-{az}",
@@ -101,20 +98,20 @@ for i, az in enumerate(az_list):
             availability_zone=az,
             map_public_ip_on_launch=True
         )
-        print(f"Public subnet created: {subnet_id} in {az}")
+        print(f"Public subnet created: {subnet_public['id']} in {az}")
     else:
-        print(f"Public subnet found: {subnet_id} in {az}")
-    subnet_public_ids.append(subnet_id)
+        print(f"Public subnet found: {subnet_public['id']} in {az}")
+    subnet_public.append(subnet_public)
 
     # Private subnet
-    subnet_id = load_aws_subnet(
+    subnet_private = load_aws_subnet(
         VAR_ACCOUNT,
         product=VAR_PRODUCT,
         usage=f"private-{az}",
         vpc_id=vpc_id
     )
-    if not subnet_id:
-        subnet_id = create_aws_subnet(
+    if not subnet_private:
+        subnet_private = create_aws_subnet(
             VAR_ACCOUNT,
             product=VAR_PRODUCT,
             usage=f"private-{az}",
@@ -123,7 +120,57 @@ for i, az in enumerate(az_list):
             availability_zone=az,
             map_public_ip_on_launch=False
         )
-        print(f"Private subnet created: {subnet_id} in {az}")
+        print(f"Private subnet created: {subnet_private['id']} in {az}")
     else:
-        print(f"Private subnet found: {subnet_id} in {az}")
-    subnet_private_ids.append(subnet_id)
+        print(f"Private subnet found: {subnet_private['id']} in {az}")
+    subnet_private.append(subnet_private)
+
+# Security Group
+
+sg_test_id = load_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="test",vpc_id=vpc_id)
+sg_natgw_id = load_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="natgw",vpc_id=vpc_id)
+sg_ghrunner_id = load_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="ghrunner",vpc_id=vpc_id)
+
+if not sg_test_id:
+    sg_test_id = create_aws_security_group(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage="test",
+        vpc_id=vpc_id,
+        description="Test security group",
+        inbound_rules=[{
+            "IpProtocol": "-1",
+            "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+        }]
+    )
+    print(f"Security Group created: {sg_test_id}")
+else:
+    print(f"Security Group found: {sg_test_id}")
+
+if not sg_natgw_id:
+    sg_natgw_id = create_aws_security_group(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage="natgw",
+        vpc_id=vpc_id,
+        description="ec2_natgw",
+        inbound_rules=[{
+            "IpProtocol": "-1",
+            "IpRanges": [{"CidrIp": subnet["cidr"]} for subnet in subnet_private]
+        }],
+    )
+    print(f"Security Group NATGW created: {sg_natgw_id}")
+else:
+    print(f"Security Group NATGW found: {sg_natgw_id}")
+
+if not sg_ghrunner_id:
+    sg_ghrunner_id = create_aws_security_group(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage="ghrunner",
+        vpc_id=vpc_id,
+        description="ec2_ghrunner",
+    )
+    print(f"Security Group GHRUNNER created: {sg_ghrunner_id}")
+else:
+    print(f"Security Group GHRUNNER found: {sg_ghrunner_id}")

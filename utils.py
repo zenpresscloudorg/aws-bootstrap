@@ -286,7 +286,7 @@ def load_aws_subnet(
 ) -> str | None:
     """
     Finds the first Subnet in AWS matching the given tags and vpc_id.
-    Returns the subnet_id if found, else None.
+    Returns a dict with id and cidr if found, else None.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
@@ -303,7 +303,7 @@ def load_aws_subnet(
         subnets = response.get("Subnets", [])
         if subnets:
             subnet = subnets[0]
-            return subnet["SubnetId"]
+            return {"id": subnet["SubnetId"], "cidr": subnet["CidrBlock"]}
         return None
     except ClientError as e:
         raise Exception(f"Error loading Subnet: {e}")
@@ -320,7 +320,7 @@ def create_aws_subnet(
 ) -> str:
     """
     Creates a new Subnet in AWS with a random name and required tags.
-    Returns the created subnet_id.
+    Returns a dict with id and cidr of the created subnet.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
@@ -341,9 +341,103 @@ def create_aws_subnet(
     }
     try:
         response = ec2.create_subnet(**params)
-        subnet_id = response["Subnet"]["SubnetId"]
+        subnet = response["Subnet"]
+        subnet_id = subnet["SubnetId"]
+        cidr = subnet["CidrBlock"]
         ec2.create_tags(Resources=[subnet_id], Tags=tags)
-        return subnet_id
+        return {"id": subnet_id, "cidr": cidr}
     except ClientError as e:
         raise Exception(f"Error creating Subnet: {e}")
+
+
+def load_aws_security_group(
+    account_info: dict,
+    product: str,
+    usage: str,
+    vpc_id: str
+) -> str | None:
+    """
+    Finds the first Security Group in AWS matching the given tags and vpc_id.
+    Returns the security group id if found, else None.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    filters = [
+        {"Name": "tag:account", "Values": [account_info["account"]]},
+        {"Name": "tag:environment", "Values": [account_info["environment"]]},
+        {"Name": "tag:region", "Values": [account_info["region"]]},
+        {"Name": "tag:product", "Values": [product]},
+        {"Name": "tag:usage", "Values": [usage]},
+        {"Name": "vpc-id", "Values": [vpc_id]}
+    ]
+    try:
+        response = ec2.describe_security_groups(Filters=filters)
+        sgs = response.get("SecurityGroups", [])
+        if sgs:
+            sg = sgs[0]
+            return sg["GroupId"]
+        return None
+    except ClientError as e:
+        raise Exception(f"Error loading Security Group: {e}")
+
+
+def create_aws_security_group(
+    account_info: dict,
+    product: str,
+    usage: str,
+    vpc_id: str,
+    description: str = "Managed by bootstrap script",
+    inbound_rules: list = None,
+    outbound_rules: list = None
+) -> str:
+    """
+    Creates a new Security Group in AWS with a random name, required tags, and optional rules.
+    Returns the security group id created.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    name = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    tags = [
+        {"Key": "account", "Value": account_info["account"]},
+        {"Key": "environment", "Value": account_info["environment"]},
+        {"Key": "region", "Value": account_info["region"]},
+        {"Key": "product", "Value": product},
+        {"Key": "usage", "Value": usage},
+        {"Key": "Name", "Value": name}
+    ]
+    try:
+        response = ec2.create_security_group(
+            GroupName=name,
+            Description=description,
+            VpcId=vpc_id,
+            TagSpecifications=[{
+                "ResourceType": "security-group",
+                "Tags": tags
+            }]
+        )
+        sg_id = response["GroupId"]
+        # Inbound rules
+        if inbound_rules:
+            ec2.authorize_security_group_ingress(
+                GroupId=sg_id,
+                IpPermissions=inbound_rules
+            )
+        # Outbound rules
+        if outbound_rules:
+            ec2.authorize_security_group_egress(
+                GroupId=sg_id,
+                IpPermissions=outbound_rules
+            )
+        else:
+            # Default allow all outbound
+            ec2.authorize_security_group_egress(
+                GroupId=sg_id,
+                IpPermissions=[{
+                    "IpProtocol": "-1",
+                    "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+                }]
+            )
+        return sg_id
+    except ClientError as e:
+        raise Exception(f"Error creating Security Group: {e}")
 
