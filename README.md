@@ -27,13 +27,10 @@ git clone https://github.com/zenpresscloudorg/aws-bootstrap
 ```bash
 cat > aws-bootstrap/vars.json <<EOF
 {
-   "project_name":"demo",
-   "project_environment":"dev/prod",
    "vpc_cidr": "10.0.0.0/16 (must be cidr format)", 
    "vpc_ipv6_enable": true/false,
    "tailscale_auth_key": "Token from tailscale auth section",
    "hostedzones_public": "demo.demo",
-   "hostedzones_private": "demo.demo",
    "gh_org": "github organization name",
    "gh_dispatcher_token": "github pat token to dispatch workflows"
    "gh_runner_token": "Github org runner token"
