@@ -101,7 +101,7 @@ def render_user_data(
     rendered = template.safe_substitute(context)
     return rendered
 
-def load_aws_key_pair(
+def ensure_aws_key_pair(
     account_info: dict,
     product: str,
     usage: str
@@ -205,7 +205,7 @@ def create_aws_key_pair(
         raise Exception(f"Error creating key pair: {e}")
 
 
-def load_aws_secret(
+def ensure_aws_secret(
     account_info: dict,
     product: str,
     usage: str
@@ -273,7 +273,7 @@ def create_aws_secret(
         raise Exception(f"Error creating secret: {e}")
 
 
-def load_aws_vpc(
+def ensure_aws_vpc(
     account_info: dict,
     product: str,
     usage: str
@@ -335,7 +335,7 @@ def create_aws_vpc(
         raise Exception(f"Error creating VPC: {e}")
 
 
-def load_aws_subnet(
+def ensure_aws_subnet(
     account_info: dict,
     product: str,
     usage: str,
@@ -407,7 +407,7 @@ def create_aws_subnet(
         raise Exception(f"Error creating Subnet: {e}")
 
 
-def load_aws_security_group(
+def ensure_aws_security_group(
     account_info: dict,
     product: str,
     usage: str,
@@ -499,7 +499,7 @@ def create_aws_security_group(
         raise Exception(f"Error creating Security Group: {e}")
 
 
-def load_aws_instance(account_info, product, usage):
+def ensure_aws_instance(account_info, product, usage):
     """
     Busca una instancia EC2 por tags (Product, Usage).
     Devuelve un dict con InstanceId y estado si existe, o None si no existe.
@@ -585,4 +585,82 @@ def set_instance_source_dest_check(account_info, instance_id, value: bool):
         SourceDestCheck={"Value": value}
     )
 
+def ensure_aws_internet_gateway(
+    account_info: dict,
+    product: str,
+    usage: str,
+    vpc_id: str
+) -> str | None:
+    """
+    Finds the first Internet Gateway (IGW) in AWS matching the given tags and vpc_id.
 
+    Parameters:
+        account_info (dict): Account information.
+        product (str): Product.
+        usage (str): Usage.
+        vpc_id (str): VPC ID.
+
+    Returns:
+        str | None: IGW ID if exists, None otherwise.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    filters = [
+        {"Name": "tag:account", "Values": [account_info["account"]]},
+        {"Name": "tag:environment", "Values": [account_info["environment"]]},
+        {"Name": "tag:region", "Values": [account_info["region"]]},
+        {"Name": "tag:product", "Values": [product]},
+        {"Name": "tag:usage", "Values": [usage]},
+        {"Name": "attachment.vpc-id", "Values": [vpc_id]}
+    ]
+    try:
+        response = ec2.describe_internet_gateways(Filters=filters)
+        igws = response.get("InternetGateways", [])
+        if igws:
+            return igws[0]["InternetGatewayId"]
+        return None
+    except ClientError as e:
+        raise Exception(f"Error buscando IGW por tags: {e}")
+
+def create_aws_internet_gateway(
+    account_info: dict,
+    product: str,
+    usage: str,
+    vpc_id: str
+) -> str:
+    """
+    Creates an Internet Gateway (IGW) in AWS and attaches it to the specified VPC, with required tags.
+
+    Parameters:
+        account_info (dict): Account information.
+        product (str): Product.
+        usage (str): Usage.
+        vpc_id (str): VPC ID.
+
+    Returns:
+        str: Created IGW ID.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    tags = [
+        {"Key": "account", "Value": account_info["account"]},
+        {"Key": "environment", "Value": account_info["environment"]},
+        {"Key": "region", "Value": account_info["region"]},
+        {"Key": "product", "Value": product},
+        {"Key": "usage", "Value": usage}
+    ]
+    try:
+        response = ec2.create_internet_gateway(
+            TagSpecifications=[{
+                "ResourceType": "internet-gateway",
+                "Tags": tags
+            }]
+        )
+        igw_id = response["InternetGateway"]["InternetGatewayId"]
+        ec2.attach_internet_gateway(
+            InternetGatewayId=igw_id,
+            VpcId=vpc_id
+        )
+        return igw_id
+    except ClientError as e:
+        raise Exception(f"Error creando IGW: {e}")

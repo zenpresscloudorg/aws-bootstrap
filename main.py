@@ -26,7 +26,7 @@ except Exception as e:
 
 # SSH Key
 
-key_name = load_aws_key_pair(VAR_ACCOUNT,product=VAR_PRODUCT,usage="main")
+key_name = ensure_aws_key_pair(VAR_ACCOUNT,product=VAR_PRODUCT,usage="main")
 
 if not key_name:
     key_material = generate_key_pair()
@@ -41,7 +41,7 @@ print(key_name)
 
 # Secrets
 
-secret_keypair = load_aws_secret(VAR_ACCOUNT, product=VAR_PRODUCT, usage="keypair")
+secret_keypair = ensure_aws_secret(VAR_ACCOUNT, product=VAR_PRODUCT, usage="keypair")
 if not secret_keypair:
     secret_keypair = create_aws_secret(VAR_ACCOUNT,
         product=VAR_PRODUCT,
@@ -52,7 +52,7 @@ if not secret_keypair:
 else:
     print(f"Secret found: {secret_keypair['name']} (ARN: {secret_keypair['arn']})")
 
-secret_ghdispatcher = load_aws_secret(VAR_ACCOUNT,product=VAR_PRODUCT,usage="ghdispatcher")
+secret_ghdispatcher = ensure_aws_secret(VAR_ACCOUNT,product=VAR_PRODUCT,usage="ghdispatcher")
 if not secret_ghdispatcher:
     secret_ghdispatcher = create_aws_secret(
         VAR_ACCOUNT,
@@ -66,7 +66,7 @@ else:
 
 # VPC
 
-vpc_id = load_aws_vpc(VAR_ACCOUNT,product=VAR_PRODUCT,usage="main")
+vpc_id = ensure_aws_vpc(VAR_ACCOUNT,product=VAR_PRODUCT,usage="main")
 if not vpc_id:
     vpc_id = create_aws_vpc(
         VAR_ACCOUNT,
@@ -86,7 +86,7 @@ az_list = get_availability_zones(VAR_ACCOUNT["region"])
 for i, az in enumerate(az_list):
 
     # Public subnet
-    subnet_public = load_aws_subnet(
+    subnet_public = ensure_aws_subnet(
         VAR_ACCOUNT,
         product=VAR_PRODUCT,
         usage=f"public-{az}",
@@ -108,7 +108,7 @@ for i, az in enumerate(az_list):
     subnet_public.append(subnet_public)
 
     # Private subnet
-    subnet_private = load_aws_subnet(
+    subnet_private = ensure_aws_subnet(
         VAR_ACCOUNT,
         product=VAR_PRODUCT,
         usage=f"private-{az}",
@@ -131,9 +131,9 @@ for i, az in enumerate(az_list):
 
 # Security Group
 
-sg_test_id = load_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="test",vpc_id=vpc_id)
-sg_natgw_id = load_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="natgw",vpc_id=vpc_id)
-sg_ghrunner_id = load_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="ghrunner",vpc_id=vpc_id)
+sg_test_id = ensure_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="test",vpc_id=vpc_id)
+sg_natgw_id = ensure_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="natgw",vpc_id=vpc_id)
+sg_ghrunner_id = ensure_aws_security_group(VAR_ACCOUNT,product=VAR_PRODUCT,usage="ghrunner",vpc_id=vpc_id)
 
 if not sg_test_id:
     sg_test_id = create_aws_security_group(
@@ -181,8 +181,8 @@ else:
 
 # Natgw Instance
 
-instance_natgw = load_aws_instance(VAR_ACCOUNT,product=VAR_PRODUCT,usage="natgw")
-if not instance_natgw:
+instance_natgw_id = ensure_aws_instance(VAR_ACCOUNT,product=VAR_PRODUCT,usage="natgw")
+if not instance_natgw_id:
     natgw_userdata = render_user_data(
         template_path="src/userdata/natgw.sh",
         context={
@@ -191,7 +191,7 @@ if not instance_natgw:
             "ADVERTISE_ROUTES": ",".join([subnet["cidr"] for subnet in subnet_private])
         }
     )
-    instance_natgw = create_aws_instance(
+    instance_natgw_id = create_aws_instance(
         VAR_ACCOUNT,
         product=VAR_PRODUCT,
         usage="natgw",
@@ -205,9 +205,15 @@ if not instance_natgw:
         delete_on_termination=True,
         userdata=natgw_userdata
     )
-    set_instance_source_dest_check(VAR_ACCOUNT, instance_natgw['id'], True)
-    print(f"Instancia NATGW creada: {instance_natgw['id']} (estado: {instance_natgw['state']})")
+    set_instance_source_dest_check(VAR_ACCOUNT, instance_natgw_id['id'], True)
+    print(f"Instancia NATGW creada: {instance_natgw_id['id']} (estado: {instance_natgw_id['state']})")
 else:
-    print(f"Instancia NATGW encontrada: {instance_natgw['id']} (estado: {instance_natgw['state']})")
+    print(f"Instancia NATGW encontrada: {instance_natgw_id['id']} (estado: {instance_natgw_id['state']})")
 
 # IGW
+
+igw_id = ensure_aws_internet_gateway(VAR_ACCOUNT, product=VAR_PRODUCT,usage="main", vpc_id)
+if not igw_id:
+    igw_id = create_aws_internet_gateway(VAR_ACCOUNT, product=VAR_PRODUCT,usage="main", vpc_id)
+    print(f"Created IGW: {igw_id}")
+    return igw_id
