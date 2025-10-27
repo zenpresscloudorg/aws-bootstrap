@@ -8,12 +8,15 @@ if [ ! -f "$VARS_JSON_PATH" ]; then
 	exit 1
 fi
 
-project_name=$(jq -r '.project_name' "$VARS_JSON_PATH")
-project_environment=$(jq -r '.project_environment' "$VARS_JSON_PATH")
 aws_region=${AWS_REGION}
 
-# Formato del nombre del bucket
-bucket_name="${project_name}-bootstrap-${project_environment}-s3-tfstate"
+BUCKET_FILE="$(dirname "$0")/.bucket_name"
+if [ -f "$BUCKET_FILE" ]; then
+	bucket_name=$(cat "$BUCKET_FILE")
+else
+	bucket_name=$(tr -dc 'a-z0-9' </dev/urandom | head -c 12)
+	echo "$bucket_name" > "$BUCKET_FILE"
+fi
 
 # Terraform
 
