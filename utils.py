@@ -42,9 +42,8 @@ def validate_account_info(account_info: dict):
         raise KeyError(f"Missing required keys in account_info: {missing}")
 
 
-def find_aws_key_pair_by_tags(account_info: dict, product: str, usage: str) -> str | None:
+def load_aws_key_pair(account_info: dict, product: str, usage: str) -> str | None:
     """
-    Search for the first AWS EC2 key pair matching multiple tags.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
@@ -69,7 +68,6 @@ def generate_key_pair() -> tuple[str, str]:
     """
     Generates an RSA key pair in SSH format.
     """
-
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
@@ -97,7 +95,7 @@ def create_aws_key_pair(account_info: dict, product: str, usage: str) -> str:
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
-    key_name = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    name = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
     tags = [
         {"Key": "account", "Value": account_info["account"]},
         {"Key": "environment", "Value": account_info["environment"]},
@@ -107,12 +105,123 @@ def create_aws_key_pair(account_info: dict, product: str, usage: str) -> str:
     ]
     try:
         ec2.create_key_pair(
-            KeyName=key_name,
+            KeyName=name,
             TagSpecifications=[{
                 "ResourceType": "key-pair",
                 "Tags": tags
             }]
         )
-        return key_name
+        return name
     except ClientError as e:
         raise Exception(f"Error creating key pair: {e}")
+
+
+def load_aws_secret(account_info: dict, product: str, usage: str) -> dict | None:
+    """
+    Busca el primer secreto en AWS Secrets Manager que tenga los tags correctos.
+    Retorna un dict con name y arn si lo encuentra, si no None.
+    """
+    validate_account_info(account_info)
+    client = boto3.client("secretsmanager", region_name=account_info["region"])
+    filters = [
+        {"Key": "account", "Value": account_info["account"]},
+        {"Key": "environment", "Value": account_info["environment"]},
+        {"Key": "region", "Value": account_info["region"]},
+        {"Key": "product", "Value": product},
+        {"Key": "usage", "Value": usage}
+    ]
+    try:
+        paginator = client.get_paginator("list_secrets")
+        for page in paginator.paginate():
+            for secret in page.get("SecretList", []):
+                secret_tags = {tag["Key"]: tag["Value"] for tag in secret.get("Tags", [])}
+                if all(tag["Value"] == secret_tags.get(tag["Key"]) for tag in filters):
+                    return {
+                        "name": secret.get("Name"),
+                        "arn": secret.get("ARN")
+                    }
+        return None
+    except ClientError as e:
+        raise Exception(f"Error loading secret: {e}")
+
+
+def create_aws_secret(account_info: dict, product: str, usage: str, secret_value: str) -> dict:
+    """
+    Creates a new AWS Secrets Manager secret with tags and value.
+    The secret name is a random 12-character alphanumeric string.
+    Returns a dict with secret_name and secret_arn.
+    """
+    validate_account_info(account_info)
+    client = boto3.client("secretsmanager", region_name=account_info["region"])
+    name = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    tags = [
+        {"Key": "account", "Value": account_info["account"]},
+        {"Key": "environment", "Value": account_info["environment"]},
+        {"Key": "region", "Value": account_info["region"]},
+        {"Key": "product", "Value": product},
+        {"Key": "usage", "Value": usage}
+    ]
+    try:
+        response = client.create_secret(
+            Name=name,
+            SecretString=secret_value,
+            Tags=tags
+        )
+        return {
+            "name": name,
+            "arn": response["ARN"]
+        }
+    except ClientError as e:
+        raise Exception(f"Error creating secret: {e}")
+
+
+def load_aws_vpc(account_info: dict, product: str, usage: str) -> dict | None:
+    """
+    Busca la primera VPC en AWS que tenga los tags correctos.
+    Retorna un dict con vpc_id y arn si la encuentra, si no None.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    filters = [
+        {"Name": "tag:account", "Values": [account_info["account"]]},
+        {"Name": "tag:environment", "Values": [account_info["environment"]]},
+        {"Name": "tag:region", "Values": [account_info["region"]]},
+        {"Name": "tag:product", "Values": [product]},
+        {"Name": "tag:usage", "Values": [usage]}
+    ]
+    try:
+        response = ec2.describe_vpcs(Filters=filters)
+        vpcs = response.get("Vpcs", [])
+        if vpcs:
+            vpc = vpcs[0]
+            return vpc["VpcId"]
+        return None
+    except ClientError as e:
+        raise Exception(f"Error loading VPC: {e}")
+
+
+def create_aws_vpc(account_info: dict, product: str, usage: str, cidr_block: str, ipv6_enable: bool = False) -> str:
+    """
+    Crea una nueva VPC en AWS con nombre aleatorio, los tags requeridos y opcionalmente IPv6.
+    Retorna el vpc_id creado.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    name = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    tags = [
+        {"Key": "account", "Value": account_info["account"]},
+        {"Key": "environment", "Value": account_info["environment"]},
+        {"Key": "region", "Value": account_info["region"]},
+        {"Key": "product", "Value": product},
+        {"Key": "usage", "Value": usage},
+        {"Key": "Name", "Value": name}
+    ]
+    try:
+        response = ec2.create_vpc(CidrBlock=cidr_block)
+        vpc_id = response["Vpc"]["VpcId"]
+        ec2.create_tags(Resources=[vpc_id], Tags=tags)
+        if ipv6_enable:
+            ec2.assign_ipv6_cidr_block(VpcId=vpc_id, AmazonProvidedIpv6CidrBlock=True)
+        return vpc_id
+    except ClientError as e:
+        raise Exception(f"Error creating VPC: {e}")
