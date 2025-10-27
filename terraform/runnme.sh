@@ -24,6 +24,24 @@ sudo yum install -y yum-utils
 sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
 sudo yum -y install terraform
 
+# Ghrunner role
+
+resource "aws_iam_role" "role_ghrunner" {
+  name = local.role_ec2_ghrunner_name
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
 # Bucket
 
 if aws s3api head-bucket --bucket "$bucket_name" 2>/dev/null; then
@@ -40,7 +58,7 @@ cat > "$(dirname "$0")/backend.tf" <<EOF
 terraform {
 	backend "s3" {
 		bucket = "$bucket_name"
-		key    = "terraform.tfstate"
+		key    = "bootstrap.tfstate"
 		region = "$aws_region"
 	}
 }

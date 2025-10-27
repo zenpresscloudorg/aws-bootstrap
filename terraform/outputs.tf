@@ -25,19 +25,9 @@ output "route53_public_zone_id" {
   value       = aws_route53_zone.public.zone_id
 }
 
-output "route53_private_zone_id" {
-  description = "ID of the private Route53 hosted zone"
-  value       = aws_route53_zone.private.zone_id
-}
-
 output "route53_public_nameservers" {
   description = "Nameservers of the public hosted zone"
   value       = aws_route53_zone.public.name_servers
-}
-
-output "route53_private_nameservers" {
-  description = "Nameservers of the private hosted zone"
-  value       = aws_route53_zone.private.name_servers
 }
 
 output "secret_keypair" {

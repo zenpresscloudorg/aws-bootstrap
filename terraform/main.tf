@@ -333,31 +333,34 @@ resource "aws_s3_bucket_policy" "policy_s3_tfstate" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid = "AllowOnlySpecificRole"
-        Effect = "Allow"
-        Principal = {
-          AWS = aws_iam_role.role_ghrunner.arn
-        }
-        Action = "s3:*"
-        Resource = [
-          "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}",
-          "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}/*"
+        Sid     = "AllowRunnerListBucket"
+        Effect  = "Allow"
+        Principal = { AWS = aws_iam_role.role_ghrunner.arn }
+        Action  = [
+          "s3:ListBucket"
         ]
+        Resource = "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}"
       },
       {
-        Sid = "DenyAllOtherPrincipals"
-        Effect = "Deny"
-        Principal = "*"
-        Action = "s3:*"
+        Sid     = "AllowRunnerObjectRW"
+        Effect  = "Allow"
+        Principal = { AWS = aws_iam_role.role_ghrunner.arn }
+        Action  = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}/*"
+      },
+      {
+        Sid     = "DenyAllExceptRunner"
+        Effect  = "Deny"
+        NotPrincipal = { AWS = aws_iam_role.role_ghrunner.arn }
+        Action  = "s3:*"
         Resource = [
           "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}",
           "arn:aws:s3:::${aws_s3_bucket.s3_tfstate.bucket}/*"
         ]
-        Condition = {
-          StringNotEquals = {
-            "aws:PrincipalArn" = aws_iam_role.role_ghrunner.arn
-          }
-        }
       }
     ]
   })
@@ -456,12 +459,4 @@ resource "aws_lambda_function_url" "lambdaurl_ghdispatcher" {
 
 resource "aws_route53_zone" "public" {
   name = var.hostedzone_public
-}
-
-resource "aws_route53_zone" "private" {
-  name = var.hostedzone_private
-  vpc {
-    vpc_id     = aws_vpc.main.id
-    vpc_region = data.aws_region.current.name
-  }
 }
