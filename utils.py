@@ -8,7 +8,9 @@ import os
 import random
 import string
 
-def load_vars_json(path: str = "vars.json") -> dict:
+def load_vars_json(
+    path: str = "vars.json"
+) -> dict:
     """
     Loads the content of vars.json as a dictionary and validates required keys.
     """
@@ -35,15 +37,37 @@ def load_vars_json(path: str = "vars.json") -> dict:
     return data
 
 
-def validate_account_info(account_info: dict):
+def validate_account_info(
+    account_info: dict
+):
     required_keys = ["account", "environment", "region"]
     missing = [k for k in required_keys if k not in account_info]
     if missing:
         raise KeyError(f"Missing required keys in account_info: {missing}")
 
-
-def load_aws_key_pair(account_info: dict, product: str, usage: str) -> str | None:
+def get_availability_zones(
+    region: str
+) -> list:
     """
+    Returns a list of availability zones for the given AWS region.
+    """
+    ec2 = boto3.client("ec2", region_name=region)
+    try:
+        response = ec2.describe_availability_zones(
+            Filters=[{"Name": "region-name", "Values": [region]}]
+        )
+        return [az["ZoneName"] for az in response["AvailabilityZones"] if az["State"] == "available"]
+    except ClientError as e:
+        raise Exception(f"Error getting availability zones: {e}")
+
+def load_aws_key_pair(
+    account_info: dict,
+    product: str,
+    usage: str
+) -> str | None:
+    """
+    Finds the first AWS EC2 key pair matching the given tags.
+    Returns the key name if found, else None.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
@@ -64,9 +88,11 @@ def load_aws_key_pair(account_info: dict, product: str, usage: str) -> str | Non
         raise Exception(f"Error searching key pairs by tags: {e}")
 
 
-def generate_key_pair() -> tuple[str, str]:
+def generate_key_pair(
+) -> tuple[str, str]:
     """
     Generates an RSA key pair in SSH format.
+    Returns a JSON string with private and public keys.
     """
     private_key = rsa.generate_private_key(
         public_exponent=65537,
@@ -89,9 +115,15 @@ def generate_key_pair() -> tuple[str, str]:
     }, indent=2)
 
 
-def create_aws_key_pair(account_info: dict, product: str, usage: str) -> str:
+def create_aws_key_pair(
+    account_info: dict,
+    product: str,
+    usage: str,
+    key_material: str = None
+) -> str:
     """
-    Creates a new AWS EC2 key pair with random name and required tags.
+    Creates a new AWS EC2 key pair with a random name and required tags.
+    Returns the created key name.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
@@ -116,10 +148,14 @@ def create_aws_key_pair(account_info: dict, product: str, usage: str) -> str:
         raise Exception(f"Error creating key pair: {e}")
 
 
-def load_aws_secret(account_info: dict, product: str, usage: str) -> dict | None:
+def load_aws_secret(
+    account_info: dict,
+    product: str,
+    usage: str
+) -> dict | None:
     """
-    Busca el primer secreto en AWS Secrets Manager que tenga los tags correctos.
-    Retorna un dict con name y arn si lo encuentra, si no None.
+    Finds the first AWS Secrets Manager secret matching the given tags.
+    Returns a dict with name and arn if found, else None.
     """
     validate_account_info(account_info)
     client = boto3.client("secretsmanager", region_name=account_info["region"])
@@ -145,11 +181,16 @@ def load_aws_secret(account_info: dict, product: str, usage: str) -> dict | None
         raise Exception(f"Error loading secret: {e}")
 
 
-def create_aws_secret(account_info: dict, product: str, usage: str, secret_value: str) -> dict:
+def create_aws_secret(
+    account_info: dict,
+    product: str,
+    usage: str,
+    secret_value: str
+) -> dict:
     """
     Creates a new AWS Secrets Manager secret with tags and value.
     The secret name is a random 12-character alphanumeric string.
-    Returns a dict with secret_name and secret_arn.
+    Returns a dict with name and arn.
     """
     validate_account_info(account_info)
     client = boto3.client("secretsmanager", region_name=account_info["region"])
@@ -175,10 +216,14 @@ def create_aws_secret(account_info: dict, product: str, usage: str, secret_value
         raise Exception(f"Error creating secret: {e}")
 
 
-def load_aws_vpc(account_info: dict, product: str, usage: str) -> dict | None:
+def load_aws_vpc(
+    account_info: dict,
+    product: str,
+    usage: str
+) -> str | None:
     """
-    Busca la primera VPC en AWS que tenga los tags correctos.
-    Retorna un dict con vpc_id y arn si la encuentra, si no None.
+    Finds the first VPC in AWS matching the given tags.
+    Returns the vpc_id if found, else None.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
@@ -200,10 +245,16 @@ def load_aws_vpc(account_info: dict, product: str, usage: str) -> dict | None:
         raise Exception(f"Error loading VPC: {e}")
 
 
-def create_aws_vpc(account_info: dict, product: str, usage: str, cidr_block: str, ipv6_enable: bool = False) -> str:
+def create_aws_vpc(
+    account_info: dict,
+    product: str,
+    usage: str,
+    cidr_block: str,
+    ipv6_enable: bool = False
+) -> str:
     """
-    Crea una nueva VPC en AWS con nombre aleatorio, los tags requeridos y opcionalmente IPv6.
-    Retorna el vpc_id creado.
+    Creates a new VPC in AWS with a random name, required tags, and optionally IPv6.
+    Returns the created vpc_id.
     """
     validate_account_info(account_info)
     ec2 = boto3.client("ec2", region_name=account_info["region"])
@@ -225,3 +276,74 @@ def create_aws_vpc(account_info: dict, product: str, usage: str, cidr_block: str
         return vpc_id
     except ClientError as e:
         raise Exception(f"Error creating VPC: {e}")
+
+
+def load_aws_subnet(
+    account_info: dict,
+    product: str,
+    usage: str,
+    vpc_id: str
+) -> str | None:
+    """
+    Finds the first Subnet in AWS matching the given tags and vpc_id.
+    Returns the subnet_id if found, else None.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    filters = [
+        {"Name": "tag:account", "Values": [account_info["account"]]},
+        {"Name": "tag:environment", "Values": [account_info["environment"]]},
+        {"Name": "tag:region", "Values": [account_info["region"]]},
+        {"Name": "tag:product", "Values": [product]},
+        {"Name": "tag:usage", "Values": [usage]},
+        {"Name": "vpc-id", "Values": [vpc_id]}
+    ]
+    try:
+        response = ec2.describe_subnets(Filters=filters)
+        subnets = response.get("Subnets", [])
+        if subnets:
+            subnet = subnets[0]
+            return subnet["SubnetId"]
+        return None
+    except ClientError as e:
+        raise Exception(f"Error loading Subnet: {e}")
+
+
+def create_aws_subnet(
+    account_info: dict,
+    product: str,
+    usage: str,
+    vpc_id: str,
+    cidr_block: str,
+    availability_zone: str,
+    map_public_ip_on_launch: bool
+) -> str:
+    """
+    Creates a new Subnet in AWS with a random name and required tags.
+    Returns the created subnet_id.
+    """
+    validate_account_info(account_info)
+    ec2 = boto3.client("ec2", region_name=account_info["region"])
+    name = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    tags = [
+        {"Key": "account", "Value": account_info["account"]},
+        {"Key": "environment", "Value": account_info["environment"]},
+        {"Key": "region", "Value": account_info["region"]},
+        {"Key": "product", "Value": product},
+        {"Key": "usage", "Value": usage},
+        {"Key": "Name", "Value": name}
+    ]
+    params = {
+        "VpcId": vpc_id,
+        "CidrBlock": cidr_block,
+        "MapPublicIpOnLaunch": map_public_ip_on_launch,
+        "AvailabilityZone": availability_zone
+    }
+    try:
+        response = ec2.create_subnet(**params)
+        subnet_id = response["Subnet"]["SubnetId"]
+        ec2.create_tags(Resources=[subnet_id], Tags=tags)
+        return subnet_id
+    except ClientError as e:
+        raise Exception(f"Error creating Subnet: {e}")
+

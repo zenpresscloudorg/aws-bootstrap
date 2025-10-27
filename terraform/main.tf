@@ -1,44 +1,4 @@
-# VPC
 
-resource "aws_vpc" "main" {
-  cidr_block                     = var.vpc_cidr
-  enable_dns_support             = true
-  enable_dns_hostnames           = true
-  assign_generated_ipv6_cidr_block = var.vpc_ipv6_enable
-  tags = {
-    Name = local.vpc_name
-  }
-}
-
-# Subnets
-
-resource "aws_subnet" "public_subnet" {
-  for_each = { for idx, az in local.azs : az => {
-    cidr_block = local.public_subnets_cidr[idx]
-    name       = local.public_subnet_names[idx]
-  } }
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = each.value.cidr_block
-  availability_zone       = each.key
-  map_public_ip_on_launch = true
-  tags = {
-    Name = each.value.name
-  }
-}
-
-resource "aws_subnet" "private_subnet" {
-  for_each = { for idx, az in local.azs : az => {
-    cidr_block = local.private_subnets_cidr[idx]
-    name       = local.private_subnet_names[idx]
-  } }
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = each.value.cidr_block
-  availability_zone = each.key
-  map_public_ip_on_launch = false
-  tags = {
-    Name = each.value.name
-  }
-}
 
 # Security groups
 

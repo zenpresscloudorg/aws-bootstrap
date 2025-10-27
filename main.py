@@ -3,6 +3,7 @@
 import os
 import random
 import string
+import ipaddress
 from utils import *
 
 # Vars
@@ -21,11 +22,7 @@ except Exception as e:
 
 # SSH Key
 
-key_name = load_aws_key_pair(
-    VAR_ACCOUNT,
-    product=VAR_PRODUCT,
-    usage="main"
-)
+key_name = load_aws_key_pair(VAR_ACCOUNT,product=VAR_PRODUCT,usage="main")
 
 if not key_name:
     key_material = generate_key_pair()
@@ -40,14 +37,9 @@ print(key_name)
 
 # Secrets
 
-secret_keypair = load_aws_secret(
-    VAR_ACCOUNT,
-    product=VAR_PRODUCT,
-    usage="keypair"
-)
+secret_keypair = load_aws_secret(VAR_ACCOUNT, product=VAR_PRODUCT, usage="keypair")
 if not secret_keypair:
-    secret_keypair = create_aws_secret(
-        VAR_ACCOUNT,
+    secret_keypair = create_aws_secret(VAR_ACCOUNT,
         product=VAR_PRODUCT,
         usage="keypair",
         secret_value=key_material
@@ -56,11 +48,7 @@ if not secret_keypair:
 else:
     print(f"Secret found: {secret_keypair['name']} (ARN: {secret_keypair['arn']})")
 
-secret_ghdispatcher = load_aws_secret(
-    VAR_ACCOUNT,
-    product=VAR_PRODUCT,
-    usage="ghdispatcher"
-)
+secret_ghdispatcher = load_aws_secret(VAR_ACCOUNT,product=VAR_PRODUCT,usage="ghdispatcher")
 if not secret_ghdispatcher:
     secret_ghdispatcher = create_aws_secret(
         VAR_ACCOUNT,
@@ -74,11 +62,7 @@ else:
 
 # VPC
 
-vpc_id = load_aws_vpc(
-    VAR_ACCOUNT,
-    product=VAR_PRODUCT,
-    usage="main"
-)
+vpc_id = load_aws_vpc(VAR_ACCOUNT,product=VAR_PRODUCT,usage="main")
 if not vpc_id:
     vpc_id = create_aws_vpc(
         VAR_ACCOUNT,
@@ -90,3 +74,56 @@ if not vpc_id:
     print(f"VPC created: {vpc_id}")
 else:
     print(f"VPC found: {vpc_id}")
+
+# Subnet
+
+subnet_public_ids = []
+subnet_private_ids = []
+vpc_network = ipaddress.IPv4Network(vars_data["vpc_cidr"])
+az_list = get_availability_zones(VAR_ACCOUNT["region"])
+
+for i, az in enumerate(az_list):
+
+    # Public subnet
+    subnet_id = load_aws_subnet(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage=f"public-{az}",
+        vpc_id=vpc_id
+    )
+    if not subnet_id:
+        subnet_id = create_aws_subnet(
+            VAR_ACCOUNT,
+            product=VAR_PRODUCT,
+            usage=f"public-{az}",
+            vpc_id=vpc_id,
+            cidr_block=str(list(vpc_network.subnets(new_prefix=24))[i*2]),
+            availability_zone=az,
+            map_public_ip_on_launch=True
+        )
+        print(f"Public subnet created: {subnet_id} in {az}")
+    else:
+        print(f"Public subnet found: {subnet_id} in {az}")
+    subnet_public_ids.append(subnet_id)
+
+    # Private subnet
+    subnet_id = load_aws_subnet(
+        VAR_ACCOUNT,
+        product=VAR_PRODUCT,
+        usage=f"private-{az}",
+        vpc_id=vpc_id
+    )
+    if not subnet_id:
+        subnet_id = create_aws_subnet(
+            VAR_ACCOUNT,
+            product=VAR_PRODUCT,
+            usage=f"private-{az}",
+            vpc_id=vpc_id,
+            cidr_block=str(list(vpc_network.subnets(new_prefix=24))[i*2+1]),
+            availability_zone=az,
+            map_public_ip_on_launch=False
+        )
+        print(f"Private subnet created: {subnet_id} in {az}")
+    else:
+        print(f"Private subnet found: {subnet_id} in {az}")
+    subnet_private_ids.append(subnet_id)
